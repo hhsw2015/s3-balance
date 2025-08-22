@@ -178,6 +178,7 @@ func AutoMigrate() error {
 		&storage.BucketStats{},
 		&storage.UploadSession{},
 		&storage.AccessLog{},
+		&storage.VirtualBucketMapping{},
 	}
 	
 	for _, model := range models {

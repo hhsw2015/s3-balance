@@ -43,13 +43,14 @@ func (BucketStats) TableName() string {
 	return "bucket_stats"
 }
 
-// VirtualBucketMapping 虚拟存储桶映射模型
+// VirtualBucketMapping 虚拟存储桶文件级映射模型
 type VirtualBucketMapping struct {
 	ID               uint      `gorm:"primaryKey" json:"id"`
-	VirtualBucketName string    `gorm:"uniqueIndex;size:255;not null" json:"virtual_bucket_name"`
+	VirtualBucketName string    `gorm:"index;size:255;not null" json:"virtual_bucket_name"`
+	ObjectKey        string    `gorm:"index;size:512;not null" json:"object_key"`
 	RealBucketName   string    `gorm:"index;size:255;not null" json:"real_bucket_name"`
-	CreatedAt        time.Time `gorm:"not null;default:CURRENT_TIMESTAMP" json:"created_at"`
-	UpdatedAt        time.Time `gorm:"not null;default:CURRENT_TIMESTAMP" json:"updated_at"`
+	CreatedAt        time.Time `gorm:"not null" json:"created_at"`
+	UpdatedAt        time.Time `gorm:"not null" json:"updated_at"`
 }
 
 // TableName 指定表名
