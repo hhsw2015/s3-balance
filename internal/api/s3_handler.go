@@ -223,7 +223,8 @@ func (h *S3Handler) handleListBuckets(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	for _, b := range buckets {
-		if b.IsAvailable() {
+		// 只显示启用的存储桶（包括虚拟存储桶）
+		if b.IsAvailable() && b.Config.Enabled {
 			result.Buckets.Bucket = append(result.Buckets.Bucket, BucketInfo{
 				Name:         b.Config.Name,
 				CreationDate: time.Now().Add(-24 * time.Hour), // 模拟创建时间
@@ -254,8 +255,15 @@ func (h *S3Handler) handleBucketOperations(w http.ResponseWriter, r *http.Reques
 // handleListObjects 列出存储桶中的对象
 func (h *S3Handler) handleListObjects(w http.ResponseWriter, r *http.Request, bucketName string) {
 	// 检查bucket是否存在
-	if _, ok := h.bucketManager.GetBucket(bucketName); !ok {
+	bucket, ok := h.bucketManager.GetBucket(bucketName)
+	if !ok {
 		h.sendS3Error(w, "NoSuchBucket", "The specified bucket does not exist", bucketName)
+		return
+	}
+	
+	// 如果是虚拟存储桶，列出虚拟存储桶中的对象
+	if bucket.IsVirtual() {
+		h.handleListObjectsForVirtualBucket(w, r, bucketName)
 		return
 	}
 	
@@ -312,10 +320,78 @@ func (h *S3Handler) handleListObjects(w http.ResponseWriter, r *http.Request, bu
 	h.sendXMLResponse(w, http.StatusOK, result)
 }
 
+// handleListObjectsForVirtualBucket 列出虚拟存储桶中的对象
+func (h *S3Handler) handleListObjectsForVirtualBucket(w http.ResponseWriter, r *http.Request, bucketName string) {
+	// 解析查询参数
+	prefix := r.URL.Query().Get("prefix")
+	marker := r.URL.Query().Get("marker")
+	maxKeysStr := r.URL.Query().Get("max-keys")
+	// delimiter := r.URL.Query().Get("delimiter") // 暂时不支持delimiter
+	
+	maxKeys := 1000
+	if maxKeysStr != "" {
+		if mk, err := strconv.Atoi(maxKeysStr); err == nil {
+			maxKeys = mk
+		}
+	}
+	
+	// 从存储服务获取虚拟存储桶中的对象
+	objects, err := h.storage.GetVirtualBucketObjects(bucketName)
+	if err != nil {
+		h.sendS3Error(w, "InternalError", "Failed to list virtual bucket objects", bucketName)
+		return
+	}
+	
+	result := ListBucketResult{
+		Xmlns:       "http://s3.amazonaws.com/doc/2006-03-01/",
+		Name:        bucketName,
+		Prefix:      prefix,
+		Marker:      marker,
+		MaxKeys:     maxKeys,
+		IsTruncated: false,
+		Contents:    make([]ObjectInfo, 0, len(objects)),
+	}
+	
+	// 过滤对象并转换为S3格式
+	for _, obj := range objects {
+		// 前缀过滤
+		if prefix != "" && !strings.HasPrefix(obj.Key, prefix) {
+			continue
+		}
+		
+		// Marker过滤
+		if marker != "" && obj.Key <= marker {
+			continue
+		}
+		
+		result.Contents = append(result.Contents, ObjectInfo{
+			Key:          obj.Key,
+			LastModified: obj.UpdatedAt,
+			ETag:         fmt.Sprintf("\"%x\"", obj.ID),
+			Size:         obj.Size,
+		})
+	}
+	
+	// 如果超过了最大数量，设置截断标志
+	if len(result.Contents) > maxKeys {
+		result.Contents = result.Contents[:maxKeys]
+		result.IsTruncated = true
+	}
+	
+	h.sendXMLResponse(w, http.StatusOK, result)
+}
+
 // handleHeadBucket 检查存储桶是否存在
 func (h *S3Handler) handleHeadBucket(w http.ResponseWriter, r *http.Request, bucketName string) {
-	if _, ok := h.bucketManager.GetBucket(bucketName); !ok {
+	bucket, ok := h.bucketManager.GetBucket(bucketName)
+	if !ok {
 		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	
+	// 虚拟存储桶也应该返回成功状态
+	if bucket.IsVirtual() {
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 	
@@ -324,6 +400,41 @@ func (h *S3Handler) handleHeadBucket(w http.ResponseWriter, r *http.Request, buc
 
 // handleCreateBucket 创建存储桶（虚拟实现）
 func (h *S3Handler) handleCreateBucket(w http.ResponseWriter, r *http.Request, bucketName string) {
+	// 检查是否已经存在同名存储桶
+	if bucket, exists := h.bucketManager.GetBucket(bucketName); exists {
+		// 如果是虚拟存储桶，检查是否已经有映射
+		if bucket.IsVirtual() {
+			if _, err := h.storage.GetVirtualBucketMapping(bucketName); err == nil {
+				h.sendS3Error(w, "BucketAlreadyExists", "The requested bucket name is not available", bucketName)
+				return
+			}
+		} else {
+			// 如果是真实存储桶，返回已存在错误
+			h.sendS3Error(w, "BucketAlreadyExists", "The requested bucket name is not available", bucketName)
+			return
+		}
+	}
+	
+	// 检查是否为虚拟存储桶
+	if bucket, exists := h.bucketManager.GetBucket(bucketName); exists && bucket.IsVirtual() {
+		// 虚拟存储桶需要选择一个真实存储桶进行映射
+		realBuckets := h.bucketManager.GetRealBuckets()
+		if len(realBuckets) == 0 {
+			h.sendS3Error(w, "InternalError", "No real buckets available for virtual bucket mapping", bucketName)
+			return
+		}
+		
+		// 简化：选择第一个可用的真实存储桶
+		// 实际应用中可能需要更复杂的策略
+		targetBucket := realBuckets[0]
+		
+		// 创建虚拟存储桶到真实存储桶的映射
+		if err := h.storage.CreateVirtualBucketMapping(bucketName, targetBucket.Config.Name); err != nil {
+			h.sendS3Error(w, "InternalError", "Failed to create virtual bucket mapping", bucketName)
+			return
+		}
+	}
+	
 	// 在负载均衡场景下，不真正创建bucket，只返回成功
 	// 实际的bucket应该在配置中预先定义
 	w.Header().Set("Location", "/" + bucketName)
@@ -332,7 +443,24 @@ func (h *S3Handler) handleCreateBucket(w http.ResponseWriter, r *http.Request, b
 
 // handleDeleteBucket 删除存储桶（虚拟实现）
 func (h *S3Handler) handleDeleteBucket(w http.ResponseWriter, r *http.Request, bucketName string) {
-	// 在负载均衡场景下，不真正删除bucket
+	// 检查存储桶是否存在
+	bucket, exists := h.bucketManager.GetBucket(bucketName)
+	if !exists {
+		// 不存在的桶，返回成功（S3标准）
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	
+	// 虚拟存储桶需要删除映射关系
+	if bucket.IsVirtual() {
+		// 删除虚拟存储桶映射
+		if err := h.storage.DeleteVirtualBucketMapping(bucketName); err != nil {
+			h.sendS3Error(w, "InternalError", "Failed to delete virtual bucket mapping", bucketName)
+			return
+		}
+	}
+	
+	// 在负载均衡场景下，不真正删除真实bucket
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -356,8 +484,28 @@ func (h *S3Handler) handleObjectOperations(w http.ResponseWriter, r *http.Reques
 
 // handleGetObject 获取对象（默认使用预签名URL重定向）
 func (h *S3Handler) handleGetObject(w http.ResponseWriter, r *http.Request, bucketName string, key string) {
+	// 检查请求的存储桶是否为虚拟存储桶
+	requestedBucket, ok := h.bucketManager.GetBucket(bucketName)
+	if !ok {
+		h.sendS3Error(w, "NoSuchBucket", "The specified bucket does not exist", bucketName)
+		return
+	}
+	
+	// 如果是虚拟存储桶，需要通过映射查找真实存储桶
+	var actualBucketName string
+	var err error
+	
+	if requestedBucket.IsVirtual() {
+		// 获取虚拟存储桶映射
+		_, err := h.storage.GetVirtualBucketMapping(bucketName)
+		if err != nil {
+			h.sendS3Error(w, "NoSuchKey", "The specified key does not exist", key)
+			return
+		}
+	}
+	
 	// 查找对象所在的实际存储桶
-	actualBucketName, err := h.storage.FindObjectBucket(key)
+	actualBucketName, err = h.storage.FindObjectBucket(key)
 	if err != nil {
 		h.sendS3Error(w, "NoSuchKey", "The specified key does not exist", key)
 		return
@@ -405,6 +553,36 @@ func (h *S3Handler) handleGetObject(w http.ResponseWriter, r *http.Request, buck
 
 // handleHeadObject 获取对象元数据
 func (h *S3Handler) handleHeadObject(w http.ResponseWriter, r *http.Request, bucketName string, key string) {
+	// 检查请求的存储桶是否为虚拟存储桶
+	requestedBucket, ok := h.bucketManager.GetBucket(bucketName)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	
+	// 如果是虚拟存储桶，需要通过映射查找真实存储桶
+	if requestedBucket.IsVirtual() {
+		// 获取虚拟存储桶映射
+		mapping, err := h.storage.GetVirtualBucketMapping(bucketName)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		
+		_ = mapping // 使用mapping变量，避免编译错误
+		
+		// 查找对象信息（在映射的真实存储桶中）
+		obj, err := h.storage.GetObjectInfo(key)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		
+		h.setObjectHeaders(w, obj)
+		return
+	}
+	
+	// 真实存储桶的直接处理
 	// 从存储中获取对象信息
 	obj, err := h.storage.GetObjectInfo(key)
 	if err != nil {
@@ -412,15 +590,31 @@ func (h *S3Handler) handleHeadObject(w http.ResponseWriter, r *http.Request, buc
 		return
 	}
 	
+	h.setObjectHeaders(w, obj)
+	w.WriteHeader(http.StatusOK)
+}
+
+// setObjectHeaders 设置对象响应头
+func (h *S3Handler) setObjectHeaders(w http.ResponseWriter, obj *storage.Object) {
 	w.Header().Set("Content-Length", strconv.FormatInt(obj.Size, 10))
 	w.Header().Set("Last-Modified", obj.UpdatedAt.Format(http.TimeFormat))
 	w.Header().Set("ETag", fmt.Sprintf("\"%x\"", obj.ID))
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.WriteHeader(http.StatusOK)
+	if obj.ContentType != "" {
+		w.Header().Set("Content-Type", obj.ContentType)
+	} else {
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
 }
 
 // handlePutObject 上传对象（默认使用预签名URL重定向）
 func (h *S3Handler) handlePutObject(w http.ResponseWriter, r *http.Request, bucketName string, key string) {
+	// 检查请求的存储桶是否为虚拟存储桶
+	requestedBucket, ok := h.bucketManager.GetBucket(bucketName)
+	if !ok {
+		h.sendS3Error(w, "NoSuchBucket", "The specified bucket does not exist", bucketName)
+		return
+	}
+	
 	// 获取内容长度
 	contentLength := r.ContentLength
 	if contentLength < 0 {
@@ -428,11 +622,50 @@ func (h *S3Handler) handlePutObject(w http.ResponseWriter, r *http.Request, buck
 		return
 	}
 	
-	// 选择目标存储桶
-	targetBucket, err := h.balancer.SelectBucket(key, contentLength)
-	if err != nil {
-		h.sendS3Error(w, "InsufficientStorage", "No bucket has enough space", key)
-		return
+	var targetBucket *bucket.BucketInfo
+	var err error
+	
+	// 如果是虚拟存储桶，需要选择真实存储桶并创建映射
+	if requestedBucket.IsVirtual() {
+		// 获取虚拟存储桶映射，如果不存在则创建
+		_, mappingErr := h.storage.GetVirtualBucketMapping(bucketName)
+		if mappingErr != nil {
+			// 映射不存在，选择真实存储桶并创建映射
+			realBuckets := h.bucketManager.GetRealBuckets()
+			if len(realBuckets) == 0 {
+				h.sendS3Error(w, "InternalError", "No real buckets available for virtual bucket mapping", key)
+				return
+			}
+			
+			// 简化：选择第一个可用的真实存储桶
+			targetBucket = realBuckets[0]
+			
+			// 创建虚拟存储桶映射
+			if err := h.storage.CreateVirtualBucketMapping(bucketName, targetBucket.Config.Name); err != nil {
+				h.sendS3Error(w, "InternalError", "Failed to create virtual bucket mapping", key)
+				return
+			}
+		} else {
+			// 映射已存在，从存储服务获取对应的真实存储桶
+			mapping, err := h.storage.GetVirtualBucketMapping(bucketName)
+			if err != nil {
+				h.sendS3Error(w, "InternalError", "Failed to get virtual bucket mapping", key)
+				return
+			}
+			targetBucket, ok = h.bucketManager.GetBucket(mapping.RealBucketName)
+			if !ok {
+				h.sendS3Error(w, "InternalError", "Mapped real bucket not found", key)
+				return
+			}
+		}
+	} else {
+		// 真实存储桶的直接处理
+		// 选择目标存储桶
+		targetBucket, err = h.balancer.SelectBucket(key, contentLength)
+		if err != nil {
+			h.sendS3Error(w, "InsufficientStorage", "No bucket has enough space", key)
+			return
+		}
 	}
 	
 	// 生成预签名上传URL
@@ -498,6 +731,18 @@ func (h *S3Handler) handlePutObject(w http.ResponseWriter, r *http.Request, buck
 
 // handleDeleteObject 删除对象
 func (h *S3Handler) handleDeleteObject(w http.ResponseWriter, r *http.Request, bucketName string, key string) {
+	// 检查请求的存储桶是否为虚拟存储桶
+	requestedBucket, ok := h.bucketManager.GetBucket(bucketName)
+	if !ok {
+		h.sendS3Error(w, "NoSuchBucket", "The specified bucket does not exist", bucketName)
+		return
+	}
+	
+	_ = requestedBucket // 使用requestedBucket变量，避免编译错误
+	
+	var bucket *bucket.BucketInfo
+	var err error
+	
 	// 查找对象所在的实际存储桶
 	actualBucketName, err := h.storage.FindObjectBucket(key)
 	if err != nil {
@@ -506,7 +751,7 @@ func (h *S3Handler) handleDeleteObject(w http.ResponseWriter, r *http.Request, b
 		return
 	}
 	
-	bucket, ok := h.bucketManager.GetBucket(actualBucketName)
+	bucket, ok = h.bucketManager.GetBucket(actualBucketName)
 	if !ok {
 		h.sendS3Error(w, "InternalError", "Internal server error", bucketName)
 		return

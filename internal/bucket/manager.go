@@ -261,7 +261,7 @@ func (m *Manager) GetAllBuckets() []*BucketInfo {
 	return buckets
 }
 
-// GetAvailableBuckets 获取所有可用的存储桶
+// GetAvailableBuckets 获取所有可用的存储桶（排除虚拟存储桶）
 func (m *Manager) GetAvailableBuckets() []*BucketInfo {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -269,7 +269,8 @@ func (m *Manager) GetAvailableBuckets() []*BucketInfo {
 	var available []*BucketInfo
 	for _, b := range m.buckets {
 		b.mu.RLock()
-		if b.Available && (b.Config.MaxSizeBytes == 0 || b.UsedSize < b.Config.MaxSizeBytes) {
+		// 虚拟存储桶不用于负载均衡，排除它们
+		if !b.Config.Virtual && b.Available && (b.Config.MaxSizeBytes == 0 || b.UsedSize < b.Config.MaxSizeBytes) {
 			available = append(available, b)
 		}
 		b.mu.RUnlock()
@@ -307,4 +308,39 @@ func (b *BucketInfo) UpdateUsedSize(delta int64) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.UsedSize += delta
+}
+
+// IsVirtual 检查是否为虚拟存储桶
+func (b *BucketInfo) IsVirtual() bool {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.Config.Virtual
+}
+
+// GetVirtualBuckets 获取所有虚拟存储桶
+func (m *Manager) GetVirtualBuckets() []*BucketInfo {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	
+	var virtual []*BucketInfo
+	for _, b := range m.buckets {
+		if b.IsVirtual() {
+			virtual = append(virtual, b)
+		}
+	}
+	return virtual
+}
+
+// GetRealBuckets 获取所有真实存储桶
+func (m *Manager) GetRealBuckets() []*BucketInfo {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	
+	var real []*BucketInfo
+	for _, b := range m.buckets {
+		if !b.IsVirtual() {
+			real = append(real, b)
+		}
+	}
+	return real
 }

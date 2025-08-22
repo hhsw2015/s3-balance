@@ -40,6 +40,7 @@ type BucketConfig struct {
 	Enabled         bool    `yaml:"enabled"`           // 是否启用
 	UseSSL          bool    `yaml:"use_ssl"`           // 是否使用SSL
 	PathStyle       bool    `yaml:"path_style"`        // 是否使用路径风格访问
+	Virtual         bool    `yaml:"virtual"`            // 是否为虚拟存储桶（仅S3 API中可见）
 }
 
 // BalancerConfig 负载均衡配置

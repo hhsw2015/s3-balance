@@ -1,4 +1,5 @@
 # S3 Balance Service Configuration Example
+# S3兼容负载均衡服务配置示例
 
 # 服务器配置
 server:
@@ -36,53 +37,70 @@ database:
 
 # S3存储桶配置
 buckets:
-  # 第一个存储桶 - AWS S3
+  # 真实存储桶 - AWS S3（用于存储数据）
   - name: "my-bucket-1"
     endpoint: ""  # 留空使用默认AWS端点
     region: "us-east-1"
     access_key_id: "YOUR_AWS_ACCESS_KEY_ID"
     secret_access_key: "YOUR_AWS_SECRET_ACCESS_KEY"
-    max_size: "10GB"  # 最大容量限制
+    max_size: "100GB"  # 最大容量限制
     weight: 10  # 权重（用于加权负载均衡）
     enabled: true
     use_ssl: true
     path_style: false  # AWS S3使用虚拟主机风格
+    virtual: false  # 这是真实存储桶
 
-  # 第二个存储桶 - MinIO
+  # 真实存储桶 - MinIO（用于存储数据）
   - name: "my-bucket-2"
     endpoint: "http://localhost:9000"
     region: "us-east-1"
     access_key_id: "minioadmin"
     secret_access_key: "minioadmin"
-    max_size: "5GB"
+    max_size: "50GB"
     weight: 5
     enabled: true
     use_ssl: false
     path_style: true  # MinIO通常使用路径风格
+    virtual: false  # 这是真实存储桶
 
-  # 第三个存储桶 - 阿里云OSS（兼容S3）
+  # 虚拟存储桶 - user-bucket-1（用户可见，但实际存储在真实存储桶中）
+  - name: "user-bucket-1"
+    endpoint: ""  # 虚拟存储桶不需要端点
+    region: "us-east-1"
+    access_key_id: ""  # 虚拟存储桶不需要密钥
+    secret_access_key: ""  # 虚拟存储桶不需要密钥
+    max_size: "100GB"  # 显示的最大容量
+    weight: 10  # 权重（用于在真实存储桶间负载均衡）
+    enabled: true
+    use_ssl: true
+    path_style: false
+    virtual: true  # 这是虚拟存储桶
+
+  # 虚拟存储桶 - user-bucket-2（用户可见，但实际存储在真实存储桶中）
+  - name: "user-bucket-2"
+    endpoint: ""
+    region: "us-east-1"
+    access_key_id: ""
+    secret_access_key: ""
+    max_size: "50GB"
+    weight: 10
+    enabled: true
+    use_ssl: true
+    path_style: false
+    virtual: true  # 这是虚拟存储桶
+
+  # 真实存储桶 - 阿里云OSS（备用存储桶）
   - name: "my-bucket-3"
     endpoint: "https://oss-cn-hangzhou.aliyuncs.com"
     region: "cn-hangzhou"
     access_key_id: "YOUR_ALIYUN_ACCESS_KEY_ID"
     secret_access_key: "YOUR_ALIYUN_SECRET_ACCESS_KEY"
-    max_size: "20GB"
+    max_size: "200GB"
     weight: 15
     enabled: true
     use_ssl: true
     path_style: false
-
-  # 备用存储桶（可以禁用）
-  - name: "backup-bucket"
-    endpoint: "http://backup-s3.example.com"
-    region: "us-west-2"
-    access_key_id: "BACKUP_ACCESS_KEY"
-    secret_access_key: "BACKUP_SECRET_KEY"
-    max_size: "100GB"
-    weight: 1
-    enabled: false  # 当前禁用
-    use_ssl: false
-    path_style: true
+    virtual: false  # 这是真实存储桶
 
 # 负载均衡配置
 balancer:

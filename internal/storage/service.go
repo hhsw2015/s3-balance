@@ -348,3 +348,81 @@ func (s *Service) GetAccessLogs(filter *AccessLogFilter) ([]*AccessLog, error) {
 	
 	return logs, nil
 }
+
+// CreateVirtualBucketMapping 创建虚拟存储桶映射
+func (s *Service) CreateVirtualBucketMapping(virtualBucketName, realBucketName string) error {
+	mapping := &VirtualBucketMapping{
+		VirtualBucketName: virtualBucketName,
+		RealBucketName:   realBucketName,
+	}
+	
+	if err := s.db.Create(mapping).Error; err != nil {
+		return fmt.Errorf("failed to create virtual bucket mapping: %w", err)
+	}
+	
+	return nil
+}
+
+// GetVirtualBucketMapping 获取虚拟存储桶映射
+func (s *Service) GetVirtualBucketMapping(virtualBucketName string) (*VirtualBucketMapping, error) {
+	var mapping VirtualBucketMapping
+	if err := s.db.Where("virtual_bucket_name = ?", virtualBucketName).First(&mapping).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("virtual bucket mapping not found: %s", virtualBucketName)
+		}
+		return nil, fmt.Errorf("failed to get virtual bucket mapping: %w", err)
+	}
+	return &mapping, nil
+}
+
+// GetVirtualBucketMappings 获取所有虚拟存储桶映射
+func (s *Service) GetVirtualBucketMappings() ([]*VirtualBucketMapping, error) {
+	var mappings []*VirtualBucketMapping
+	if err := s.db.Find(&mappings).Error; err != nil {
+		return nil, fmt.Errorf("failed to get virtual bucket mappings: %w", err)
+	}
+	return mappings, nil
+}
+
+// UpdateVirtualBucketMapping 更新虚拟存储桶映射
+func (s *Service) UpdateVirtualBucketMapping(virtualBucketName, realBucketName string) error {
+	updates := map[string]interface{}{
+		"real_bucket_name": realBucketName,
+		"updated_at":      time.Now(),
+	}
+	
+	if err := s.db.Model(&VirtualBucketMapping{}).
+		Where("virtual_bucket_name = ?", virtualBucketName).
+		Updates(updates).Error; err != nil {
+		return fmt.Errorf("failed to update virtual bucket mapping: %w", err)
+	}
+	
+	return nil
+}
+
+// DeleteVirtualBucketMapping 删除虚拟存储桶映射
+func (s *Service) DeleteVirtualBucketMapping(virtualBucketName string) error {
+	if err := s.db.Where("virtual_bucket_name = ?", virtualBucketName).
+		Delete(&VirtualBucketMapping{}).Error; err != nil {
+		return fmt.Errorf("failed to delete virtual bucket mapping: %w", err)
+	}
+	return nil
+}
+
+// GetVirtualBucketObjects 获取虚拟存储桶中的所有对象
+func (s *Service) GetVirtualBucketObjects(virtualBucketName string) ([]*Object, error) {
+	// 首先找到虚拟存储桶对应的真实存储桶
+	mapping, err := s.GetVirtualBucketMapping(virtualBucketName)
+	if err != nil {
+		return nil, err
+	}
+	
+	// 查找所有映射到该虚拟存储桶的对象
+	var objects []*Object
+	if err := s.db.Where("bucket_name = ?", mapping.RealBucketName).
+		Find(&objects).Error; err != nil {
+		return nil, fmt.Errorf("failed to get virtual bucket objects: %w", err)
+	}
+	
+	return objects, nil
+}

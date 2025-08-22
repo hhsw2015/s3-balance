@@ -24,7 +24,7 @@ ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE"
 SECRET_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 
 # 测试配置
-TEST_BUCKET = "test-bucket-1"
+TEST_BUCKET = "test-virtual-1"
 TEST_KEY_PREFIX = f"test-{int(time.time())}"
 
 def create_s3_client():
