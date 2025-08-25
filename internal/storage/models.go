@@ -11,7 +11,7 @@ import (
 // Object 对象信息模型
 type Object struct {
 	ID         uint           `gorm:"primaryKey" json:"id"`
-	Key        string         `gorm:"uniqueIndex;size:512;not null" json:"key"`
+	Key        string         `gorm:"size:512;not null" json:"key"`
 	BucketName string         `gorm:"index;size:255;not null" json:"bucket_name"`
 	Size       int64          `gorm:"not null;default:0" json:"size"`
 	Metadata   JSON           `gorm:"type:json" json:"metadata,omitempty"`

@@ -21,6 +21,15 @@ func NewService(db *gorm.DB) *Service {
 
 // RecordObject 记录对象信息
 func (s *Service) RecordObject(key, bucketName string, size int64, metadata map[string]string) error {
+	// 首先检查是否存在已删除的同名对象
+	var deletedObj Object
+	if err := s.db.Unscoped().Where("`key` = ?", key).Where("`deleted_at` IS NOT NULL").First(&deletedObj).Error; err == nil {
+		// 存在已删除的同名对象，永久删除它
+		if err := s.db.Unscoped().Delete(&deletedObj).Error; err != nil {
+			return fmt.Errorf("failed to permanently delete soft-deleted object: %w", err)
+		}
+	}
+	
 	obj := &Object{
 		Key:        key,
 		BucketName: bucketName,
@@ -37,7 +46,7 @@ func (s *Service) RecordObject(key, bucketName string, size int64, metadata map[
 	}
 	
 	// 使用 Upsert（更新或插入）
-	result := s.db.Where("`key` = ?", key).FirstOrCreate(&obj)
+	result := s.db.Where("`key` = ?", key).Where("`deleted_at` IS NULL").FirstOrCreate(&obj)
 	if result.Error != nil {
 		return fmt.Errorf("failed to record object: %w", result.Error)
 	}
@@ -197,7 +206,10 @@ func (s *Service) updateBucketStats(bucketName string) error {
 	
 	// 获取或创建统计记录
 	result := s.db.Where("bucket_name = ?", bucketName).FirstOrCreate(&stats, BucketStats{
-		BucketName: bucketName,
+		BucketName:    bucketName,
+		LastCheckedAt: time.Now(),
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	})
 	if result.Error != nil {
 		return fmt.Errorf("failed to get bucket stats: %w", result.Error)
