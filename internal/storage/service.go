@@ -37,7 +37,7 @@ func (s *Service) RecordObject(key, bucketName string, size int64, metadata map[
 	}
 	
 	// 使用 Upsert（更新或插入）
-	result := s.db.Where("key = ?", key).FirstOrCreate(&obj)
+	result := s.db.Where("`key` = ?", key).FirstOrCreate(&obj)
 	if result.Error != nil {
 		return fmt.Errorf("failed to record object: %w", result.Error)
 	}
@@ -50,7 +50,7 @@ func (s *Service) RecordObject(key, bucketName string, size int64, metadata map[
 			"metadata":    obj.Metadata,
 			"updated_at":  time.Now(),
 		}
-		if err := s.db.Model(&Object{}).Where("key = ?", key).Updates(updates).Error; err != nil {
+		if err := s.db.Model(&Object{}).Where("`key` = ?", key).Updates(updates).Error; err != nil {
 			return fmt.Errorf("failed to update object: %w", err)
 		}
 	}
@@ -64,7 +64,7 @@ func (s *Service) RecordObject(key, bucketName string, size int64, metadata map[
 // FindObjectBucket 查找对象所在的存储桶
 func (s *Service) FindObjectBucket(key string) (string, error) {
 	var obj Object
-	if err := s.db.Where("key = ?", key).First(&obj).Error; err != nil {
+	if err := s.db.Where("`key` = ?", key).First(&obj).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return "", fmt.Errorf("object not found: %s", key)
 		}
@@ -76,7 +76,7 @@ func (s *Service) FindObjectBucket(key string) (string, error) {
 // GetObjectInfo 获取对象信息
 func (s *Service) GetObjectInfo(key string) (*Object, error) {
 	var obj Object
-	if err := s.db.Where("key = ?", key).First(&obj).Error; err != nil {
+	if err := s.db.Where("`key` = ?", key).First(&obj).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("object not found: %s", key)
 		}
@@ -88,7 +88,7 @@ func (s *Service) GetObjectInfo(key string) (*Object, error) {
 // DeleteObject 删除对象记录（软删除）
 func (s *Service) DeleteObject(key string) error {
 	var obj Object
-	if err := s.db.Where("key = ?", key).First(&obj).Error; err != nil {
+	if err := s.db.Where("`key` = ?", key).First(&obj).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return fmt.Errorf("object not found: %s", key)
 		}
@@ -120,12 +120,12 @@ func (s *Service) ListObjects(bucketName, prefix, marker string, maxKeys int) ([
 	
 	// 前缀过滤
 	if prefix != "" {
-		query = query.Where("key LIKE ?", prefix+"%")
+		query = query.Where("`key` LIKE ?", prefix+"%")
 	}
 	
 	// Marker分页
 	if marker != "" {
-		query = query.Where("key > ?", marker)
+		query = query.Where("`key` > ?", marker)
 	}
 	
 	// 限制返回数量
@@ -134,7 +134,7 @@ func (s *Service) ListObjects(bucketName, prefix, marker string, maxKeys int) ([
 	}
 	
 	// 按key字母顺序排序（S3标准）
-	if err := query.Order("key ASC").Find(&objects).Error; err != nil {
+	if err := query.Order("`key` ASC").Find(&objects).Error; err != nil {
 		return nil, fmt.Errorf("failed to list objects: %w", err)
 	}
 	
@@ -316,7 +316,7 @@ func (s *Service) GetAccessLogs(filter *AccessLogFilter) ([]*AccessLog, error) {
 			query = query.Where("action = ?", filter.Action)
 		}
 		if filter.Key != "" {
-			query = query.Where("key = ?", filter.Key)
+			query = query.Where("`key` = ?", filter.Key)
 		}
 		if filter.BucketName != "" {
 			query = query.Where("bucket_name = ?", filter.BucketName)
@@ -449,7 +449,7 @@ func (s *Service) GetVirtualBucketObjects(virtualBucketName string) ([]*Object, 
 	
 	// 从对象表中查询这些对象
 	var objects []*Object
-	if err := s.db.Where("key IN ?", objectKeys).Find(&objects).Error; err != nil {
+	if err := s.db.Where("`key` IN ?", objectKeys).Find(&objects).Error; err != nil {
 		return nil, fmt.Errorf("failed to get objects for virtual bucket: %w", err)
 	}
 	
