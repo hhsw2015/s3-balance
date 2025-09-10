@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -610,6 +611,7 @@ func (h *S3Handler) handlePutObject(w http.ResponseWriter, r *http.Request, buck
 		nil, // metadata
 	)
 	if err != nil {
+		log.Printf("Failed to generate upload URL for key %s in bucket %s: %v", key, targetBucket.Config.Name, err)
 		h.sendS3Error(w, "InternalError", "Failed to generate upload URL", key)
 		return
 	}
@@ -651,7 +653,10 @@ func (h *S3Handler) handlePutObject(w http.ResponseWriter, r *http.Request, buck
 		w.Header().Set("ETag", fmt.Sprintf("\"%x\"", time.Now().UnixNano()))
 		w.WriteHeader(http.StatusOK)
 	} else {
-		h.sendS3Error(w, "InternalError", "Upload failed", key)
+		// 读取错误响应体以获取详细信息
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("Upload failed with status %d: %s", resp.StatusCode, string(body))
+		h.sendS3Error(w, "InternalError", fmt.Sprintf("Upload failed with status %d", resp.StatusCode), key)
 	}
 }
 
