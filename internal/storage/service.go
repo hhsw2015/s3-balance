@@ -204,39 +204,51 @@ func (s *Service) GetBucketObjectCount(bucketName string) (int64, error) {
 func (s *Service) updateBucketStats(bucketName string) error {
 	var stats BucketStats
 	
-	// 获取或创建统计记录
-	result := s.db.Where("bucket_name = ?", bucketName).FirstOrCreate(&stats, BucketStats{
-		BucketName:    bucketName,
-		LastCheckedAt: time.Now(),
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
-	})
-	if result.Error != nil {
-		return fmt.Errorf("failed to get bucket stats: %w", result.Error)
-	}
-	
 	// 计算新的统计数据
 	var count int64
 	var totalSize int64
 	
-	s.db.Model(&Object{}).
+	if err := s.db.Model(&Object{}).
 		Where("bucket_name = ?", bucketName).
-		Count(&count)
-	
-	s.db.Model(&Object{}).
-		Where("bucket_name = ?", bucketName).
-		Select("COALESCE(SUM(size), 0)").
-		Scan(&totalSize)
-	
-	// 更新统计数据
-	updates := map[string]interface{}{
-		"object_count":    count,
-		"total_size":      totalSize,
-		"last_checked_at": time.Now(),
+		Count(&count).Error; err != nil {
+		return fmt.Errorf("failed to count objects: %w", err)
 	}
 	
-	if err := s.db.Model(&stats).Updates(updates).Error; err != nil {
-		return fmt.Errorf("failed to update bucket stats: %w", err)
+	if err := s.db.Model(&Object{}).
+		Where("bucket_name = ?", bucketName).
+		Select("COALESCE(SUM(size), 0)").
+		Scan(&totalSize).Error; err != nil {
+		return fmt.Errorf("failed to sum object sizes: %w", err)
+	}
+	
+	// 尝试查找现有记录
+	err := s.db.Where("bucket_name = ?", bucketName).First(&stats).Error
+	
+	if err == gorm.ErrRecordNotFound {
+		// 记录不存在，创建新记录
+		stats = BucketStats{
+			BucketName:    bucketName,
+			ObjectCount:   count,
+			TotalSize:     totalSize,
+			LastCheckedAt: time.Now(),
+		}
+		if err := s.db.Create(&stats).Error; err != nil {
+			return fmt.Errorf("failed to create bucket stats: %w", err)
+		}
+	} else if err != nil {
+		// 其他数据库错误
+		return fmt.Errorf("failed to query bucket stats: %w", err)
+	} else {
+		// 记录存在，更新统计数据
+		updates := map[string]interface{}{
+			"object_count":    count,
+			"total_size":      totalSize,
+			"last_checked_at": time.Now(),
+		}
+		
+		if err := s.db.Model(&stats).Updates(updates).Error; err != nil {
+			return fmt.Errorf("failed to update bucket stats: %w", err)
+		}
 	}
 	
 	return nil
