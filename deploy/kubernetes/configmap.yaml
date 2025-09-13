@@ -43,10 +43,10 @@ data:
       health_check_period: 30s
       update_stats_period: 60s
 
+    # 监控指标配置（与主服务共享端口）
     metrics:
       enabled: true
       path: "/metrics"
-      port: 8080
 
     s3api:
       access_key: "AKIAIOSFODNN7EXAMPLE"

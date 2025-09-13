@@ -52,7 +52,6 @@ balancer:
 metrics:
   enabled: true
   path: "/metrics"
-  port: 9090
 
 s3api:
   access_key: "AKIAIOSFODNN7EXAMPLE"

@@ -125,7 +125,6 @@ balancer:
 metrics:
   enabled: true
   path: "/metrics"
-  port: 9090
 
 # S3兼容API配置
 s3api:

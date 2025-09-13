@@ -56,7 +56,7 @@ type BalancerConfig struct {
 type MetricsConfig struct {
 	Enabled bool   `yaml:"enabled"`
 	Path    string `yaml:"path"`
-	Port    int    `yaml:"port"`
+	// Port    int    `yaml:"port"`  // 目前未使用，与主服务共享端口
 }
 
 // S3APIConfig S3兼容API配置
@@ -143,9 +143,6 @@ func (c *Config) SetDefaults() {
 
 	if c.Metrics.Path == "" {
 		c.Metrics.Path = "/metrics"
-	}
-	if c.Metrics.Port == 0 {
-		c.Metrics.Port = 9090
 	}
 
 	// 数据库默认值
