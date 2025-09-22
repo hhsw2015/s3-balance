@@ -16,7 +16,7 @@ COPY . .
 
 # 构建应用（启用CGO）
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
-    -ldflags='-w -s -X main.version=$(git describe --tags --always)' \
+    -ldflags="-w -s -X main.version=$(git describe --tags --always)" \
     -o s3-balance \
     cmd/s3-balance/main.go
 

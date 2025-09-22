@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # S3 Balance 服务
   s3-balance:
