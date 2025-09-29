@@ -3,10 +3,12 @@ package api
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 	"github.com/gorilla/mux"
 )
 
@@ -518,6 +521,10 @@ func (h *S3Handler) handleCompleteMultipartUpload(w http.ResponseWriter, r *http
 
 	// 完成分片上传
 	ctx := context.Background()
+	sort.SliceStable(completeReq.Parts, func(i, j int) bool {
+		return completeReq.Parts[i].PartNumber < completeReq.Parts[j].PartNumber
+	})
+
 	var parts []types.CompletedPart
 	for _, part := range completeReq.Parts {
 		parts = append(parts, types.CompletedPart{
@@ -537,7 +544,11 @@ func (h *S3Handler) handleCompleteMultipartUpload(w http.ResponseWriter, r *http
 	})
 	if err != nil {
 		log.Printf("CompleteMultipartUpload failed: %v", err)
-		h.sendS3Error(w, "InternalError", "Failed to complete multipart upload", key)
+		if apiErr, ok := getAPIError(err); ok {
+			h.sendS3Error(w, apiErr.ErrorCode(), apiErr.ErrorMessage(), key)
+		} else {
+			h.sendS3Error(w, "InternalError", "Failed to complete multipart upload", key)
+		}
 		return
 	}
 
@@ -578,6 +589,22 @@ func (h *S3Handler) handleCompleteMultipartUpload(w http.ResponseWriter, r *http
 	}
 
 	h.sendXMLResponse(w, http.StatusOK, result)
+}
+
+func getAPIError(err error) (smithy.APIError, bool) {
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr, true
+	}
+
+	var opErr *smithy.OperationError
+	if errors.As(err, &opErr) {
+		if apiErr, ok := opErr.Err.(smithy.APIError); ok {
+			return apiErr, true
+		}
+	}
+
+	return nil, false
 }
 
 // handleAbortMultipartUpload 中止分片上传
