@@ -137,5 +137,5 @@ s3api:
   # true (默认)：代理模式，数据通过S3 Balance服务器传输
   proxy_mode: true
   
-  # 是否需要认证（开发环境可设为false）
+  # 是否需要认证（开启后使用 Basic Auth，凭据来自 access_key/secret_key）
   auth_required: false

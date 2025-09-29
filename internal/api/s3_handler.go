@@ -19,6 +19,7 @@ type S3Handler struct {
 	secretKey     string
 	metrics       *metrics.Metrics
 	proxyMode     bool
+	authRequired  bool
 }
 
 // NewS3Handler 创建新的S3兼容API处理器
@@ -31,6 +32,7 @@ func NewS3Handler(
 	secretKey string,
 	metrics *metrics.Metrics,
 	proxyMode bool,
+	authRequired bool,
 ) *S3Handler {
 	return &S3Handler{
 		bucketManager: bucketManager,
@@ -41,6 +43,7 @@ func NewS3Handler(
 		secretKey:     secretKey,
 		metrics:       metrics,
 		proxyMode:     proxyMode,
+		authRequired:  authRequired,
 	}
 }
 
@@ -70,5 +73,5 @@ func (h *S3Handler) RegisterS3Routes(router *mux.Router) {
 	router.HandleFunc("/{bucket}/{key:.*}", h.handleObjectOperations).Methods("GET", "HEAD", "PUT", "DELETE")
 
 	// 添加认证中间件
-	router.Use(h.s3AuthMiddleware)
+	router.Use(h.authMiddleware)
 }

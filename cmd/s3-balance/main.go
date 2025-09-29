@@ -90,6 +90,7 @@ func main() {
 		cfg.S3API.SecretKey,
 		metricsService,
 		cfg.S3API.ProxyMode,
+		cfg.S3API.AuthRequired,
 	)
 
 	// 注册配置热更新回调

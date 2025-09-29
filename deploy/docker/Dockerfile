@@ -1,5 +1,5 @@
 # 多阶段构建用于减小镜像大小
-FROM golang:1.24-alpine AS builder
+FROM golang:1.24.5-alpine AS builder
 
 # 安装构建依赖
 # 注意：不再需要 gcc, musl-dev, sqlite-dev，因为使用 modernc.org/sqlite 纯Go驱动

@@ -44,7 +44,7 @@ func (h *S3Handler) sendS3Error(w http.ResponseWriter, code string, message stri
 		statusCode = http.StatusNotFound
 	case "BucketAlreadyExists":
 		statusCode = http.StatusConflict
-	case "InvalidAccessKeyId", "SignatureDoesNotMatch":
+	case "InvalidAccessKeyId", "SignatureDoesNotMatch", "AccessDenied":
 		statusCode = http.StatusForbidden
 	case "InternalError":
 		statusCode = http.StatusInternalServerError
@@ -67,20 +67,6 @@ func (h *S3Handler) setObjectHeaders(w http.ResponseWriter, obj *storage.Object)
 	}
 }
 
-// s3AuthMiddleware S3认证中间件（简化版）
-func (h *S3Handler) s3AuthMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 简化的认证实现，实际应该验证AWS Signature
-		// 这里只做基本的header检查
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			// 允许匿名访问（用于测试）
-			// 在生产环境中应该要求认证
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
 
 // 辅助函数：解析S3路径
 func parseS3Path(requestPath string) (bucket string, key string) {
