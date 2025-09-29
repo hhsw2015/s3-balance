@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/DullJZ/s3-balance/internal/bucket"
@@ -105,6 +106,10 @@ func (h *S3Handler) handleGetObject(w http.ResponseWriter, r *http.Request, buck
 		}
 		if contentLength := resp.Header.Get("Content-Length"); contentLength != "" {
 			w.Header().Set("Content-Length", contentLength)
+		} else if resp.ContentLength >= 0 {
+			w.Header().Set("Content-Length", strconv.FormatInt(resp.ContentLength, 10))
+		} else if obj, err := h.storage.GetObjectInfo(key); err == nil {
+			w.Header().Set("Content-Length", strconv.FormatInt(obj.Size, 10))
 		}
 		if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
 			w.Header().Set("Last-Modified", lastModified)
