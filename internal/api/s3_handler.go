@@ -4,6 +4,7 @@ import (
 	"github.com/DullJZ/s3-balance/internal/balancer"
 	"github.com/DullJZ/s3-balance/internal/bucket"
 	"github.com/DullJZ/s3-balance/internal/metrics"
+	"github.com/DullJZ/s3-balance/internal/middleware"
 	"github.com/DullJZ/s3-balance/internal/storage"
 	"github.com/DullJZ/s3-balance/pkg/presigner"
 	"github.com/gorilla/mux"
@@ -75,7 +76,18 @@ func (h *S3Handler) RegisterS3Routes(router *mux.Router) {
 	// Object operations - must be registered after multipart operations to avoid conflicts
 	router.HandleFunc("/{bucket}/{key:.*}", h.handleObjectOperations).Methods("GET", "HEAD", "PUT", "DELETE")
 
-	// 添加认证中间件
-	router.Use(h.virtualHostMiddleware)
-	router.Use(h.authMiddleware)
+	// 添加中间件
+	router.Use(middleware.VirtualHost(middleware.VirtualHostConfig{
+		Enabled: h.virtualHost,
+		BucketExists: func(name string) bool {
+			_, ok := h.bucketManager.GetBucket(name)
+			return ok
+		},
+	}))
+	router.Use(middleware.BasicAuth(middleware.AuthConfig{
+		Required:  h.authRequired,
+		AccessKey: h.accessKey,
+		SecretKey: h.secretKey,
+		OnError:   h.sendS3Error,
+	}))
 }

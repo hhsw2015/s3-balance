@@ -64,14 +64,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create balancer: %v", err)
 	}
-	
+
 	// 设置指标服务
 	lb.SetMetrics(metricsService)
 
 	// 创建预签名URL生成器
 	signer := presigner.NewPresigner(
-		15*time.Minute,  // 上传URL有效期
-		60*time.Minute,  // 下载URL有效期
+		15*time.Minute, // 上传URL有效期
+		60*time.Minute, // 下载URL有效期
 	)
 
 	// 创建存储服务
@@ -113,13 +113,13 @@ func main() {
 
 	// 设置路由
 	router := mux.NewRouter()
-	
+
 	// 添加指标端点
 	if cfg.Metrics.Enabled {
 		router.Path(cfg.Metrics.Path).Handler(promhttp.Handler())
 		log.Printf("Metrics server enabled at %s", cfg.Metrics.Path)
 	}
-	
+
 	// 运行在S3兼容模式
 	log.Println("Running in S3-compatible mode")
 	s3Handler.RegisterS3Routes(router)
@@ -144,7 +144,7 @@ func main() {
 		log.Printf("Starting S3 Balance Service on %s", srv.Addr)
 		log.Printf("Load balancing strategy: %s", cfg.Balancer.Strategy)
 		log.Printf("Managed buckets: %d", len(cfg.Buckets))
-		
+
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}
@@ -157,7 +157,7 @@ func main() {
 
 	// 优雅关闭
 	log.Println("Shutting down server...")
-	
+
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 
@@ -178,12 +178,12 @@ func corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -192,15 +192,15 @@ func corsMiddleware(next http.Handler) http.Handler {
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		
+
 		// 包装ResponseWriter以捕获状态码
 		wrapped := &responseWriter{
 			ResponseWriter: w,
 			statusCode:     http.StatusOK,
 		}
-		
+
 		next.ServeHTTP(wrapped, r)
-		
+
 		log.Printf(
 			"[%s] %s %s %d %v",
 			r.RemoteAddr,
@@ -228,11 +228,11 @@ func startSessionCleaner(ctx context.Context, storageService *storage.Service) {
 	go func() {
 		// 初始延迟，避免启动时立即执行
 		time.Sleep(1 * time.Minute)
-		
+
 		// 每小时清理一次过期的上传会话
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -245,7 +245,7 @@ func startSessionCleaner(ctx context.Context, storageService *storage.Service) {
 				} else {
 					log.Println("Successfully cleaned expired upload sessions")
 				}
-				
+
 				// 同时中止在S3存储桶中过期的分片上传
 				cleanupS3MultipartUploads(ctx, storageService)
 			}
@@ -261,7 +261,7 @@ func cleanupS3MultipartUploads(ctx context.Context, storageService *storage.Serv
 		log.Printf("Failed to get pending sessions for cleanup: %v", err)
 		return
 	}
-	
+
 	for _, session := range sessions {
 		if session.IsExpired() {
 			log.Printf("Found expired session: uploadID=%s, key=%s", session.UploadID, session.Key)
