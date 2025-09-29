@@ -44,7 +44,7 @@ type BucketConfig struct {
 
 // BalancerConfig 负载均衡配置
 type BalancerConfig struct {
-	Strategy          string        `yaml:"strategy"`           // 负载均衡策略: "round-robin", "least-space", "weighted", "consistent-hash"
+	Strategy          string        `yaml:"strategy"`            // 负载均衡策略: "round-robin", "least-space", "weighted", "consistent-hash"
 	HealthCheckPeriod time.Duration `yaml:"health_check_period"` // 健康检查周期
 	UpdateStatsPeriod time.Duration `yaml:"update_stats_period"` // 统计更新周期
 	RetryAttempts     int           `yaml:"retry_attempts"`      // 重试次数
@@ -60,22 +60,22 @@ type MetricsConfig struct {
 
 // S3APIConfig S3兼容API配置
 type S3APIConfig struct {
-	AccessKey      string `yaml:"access_key"`       // S3访问密钥ID
-	SecretKey      string `yaml:"secret_key"`       // S3秘密访问密钥
-	VirtualHost    bool   `yaml:"virtual_host"`     // 是否使用虚拟主机模式
-	ProxyMode      bool   `yaml:"proxy_mode"`       // 是否使用代理模式（而非重定向）
-	AuthRequired   bool   `yaml:"auth_required"`    // 是否需要认证
+	AccessKey    string `yaml:"access_key"`    // S3访问密钥ID
+	SecretKey    string `yaml:"secret_key"`    // S3秘密访问密钥
+	VirtualHost  bool   `yaml:"virtual_host"`  // 是否使用虚拟主机模式
+	ProxyMode    bool   `yaml:"proxy_mode"`    // 是否使用代理模式（而非重定向）
+	AuthRequired bool   `yaml:"auth_required"` // 是否需要认证
 }
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Type            string `yaml:"type"`             // 数据库类型: sqlite, mysql, postgres
-	DSN             string `yaml:"dsn"`              // 数据源名称
-	MaxOpenConns    int    `yaml:"max_open_conns"`   // 最大打开连接数
-	MaxIdleConns    int    `yaml:"max_idle_conns"`   // 最大空闲连接数
+	Type            string `yaml:"type"`              // 数据库类型: sqlite, mysql, postgres
+	DSN             string `yaml:"dsn"`               // 数据源名称
+	MaxOpenConns    int    `yaml:"max_open_conns"`    // 最大打开连接数
+	MaxIdleConns    int    `yaml:"max_idle_conns"`    // 最大空闲连接数
 	ConnMaxLifetime int    `yaml:"conn_max_lifetime"` // 连接最大生命周期（秒）
-	LogLevel        string `yaml:"log_level"`        // 日志级别: silent, error, warn, info
-	AutoMigrate     bool   `yaml:"auto_migrate"`     // 是否自动迁移
+	LogLevel        string `yaml:"log_level"`         // 日志级别: silent, error, warn, info
+	AutoMigrate     bool   `yaml:"auto_migrate"`      // 是否自动迁移
 }
 
 // Load 从文件加载配置
@@ -95,7 +95,7 @@ func Load(configPath string) (*Config, error) {
 	// 解析容量大小
 	for i := range config.Buckets {
 		if err := config.Buckets[i].ParseMaxSize(); err != nil {
-			return nil, fmt.Errorf("failed to parse max size for bucket %s: %w", 
+			return nil, fmt.Errorf("failed to parse max size for bucket %s: %w",
 				config.Buckets[i].Name, err)
 		}
 	}

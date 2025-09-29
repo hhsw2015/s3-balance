@@ -2,6 +2,7 @@ package balancer
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/DullJZ/s3-balance/internal/bucket"
 	"github.com/DullJZ/s3-balance/internal/config"
@@ -20,7 +21,7 @@ type Balancer struct {
 // NewBalancer 创建新的负载均衡器
 func NewBalancer(manager *bucket.Manager, cfg *config.BalancerConfig) (*Balancer, error) {
 	var strategy Strategy
-	
+
 	// 根据配置创建对应的策略实例
 	switch cfg.Strategy {
 	case "round-robin":
@@ -46,6 +47,34 @@ func NewBalancer(manager *bucket.Manager, cfg *config.BalancerConfig) (*Balancer
 // SelectBucket 选择一个存储桶
 // 首先过滤出有足够空间的存储桶，然后使用策略选择
 func (b *Balancer) SelectBucket(key string, size int64) (*bucket.BucketInfo, error) {
+	attempts := 1
+	delay := time.Second
+
+	if b.config != nil {
+		if b.config.RetryAttempts > 0 {
+			attempts = b.config.RetryAttempts
+		}
+		if b.config.RetryDelay > 0 {
+			delay = b.config.RetryDelay
+		}
+	}
+
+	var lastErr error
+	for i := 0; i < attempts; i++ {
+		selected, err := b.selectOnce(key, size)
+		if err == nil {
+			return selected, nil
+		}
+		lastErr = err
+		if i < attempts-1 {
+			time.Sleep(delay)
+		}
+	}
+
+	return nil, lastErr
+}
+
+func (b *Balancer) selectOnce(key string, size int64) (*bucket.BucketInfo, error) {
 	// 获取所有可用的存储桶
 	buckets := b.manager.GetAvailableBuckets()
 	if len(buckets) == 0 {
@@ -126,7 +155,7 @@ func (b *Balancer) GetAvailableBuckets() []*bucket.BucketInfo {
 func (b *Balancer) GetBucketStats() map[string]BucketStats {
 	stats := make(map[string]BucketStats)
 	buckets := b.manager.GetAllBuckets()
-	
+
 	for _, bucket := range buckets {
 		stats[bucket.Config.Name] = BucketStats{
 			Name:           bucket.Config.Name,
@@ -137,7 +166,7 @@ func (b *Balancer) GetBucketStats() map[string]BucketStats {
 			Weight:         bucket.Config.Weight,
 		}
 	}
-	
+
 	return stats
 }
 
