@@ -25,7 +25,6 @@ buckets:
     max_size: "1GB"
     weight: 10
     enabled: true
-    use_ssl: false
     path_style: true
     virtual: false
 
@@ -37,7 +36,6 @@ buckets:
     max_size: "1GB"
     weight: 10
     enabled: true
-    use_ssl: true
     path_style: false
     virtual: true
 
@@ -57,5 +55,5 @@ s3api:
   access_key: "AKIAIOSFODNN7EXAMPLE"
   secret_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
   virtual_host: false
-  proxy_mode: false
-  auth_required: false
+  proxy_mode: true
+  auth_required: true

@@ -138,4 +138,4 @@ s3api:
   proxy_mode: true
   
   # 是否需要认证（开启后使用 Basic Auth，凭据来自 access_key/secret_key）
-  auth_required: false
+  auth_required: true
