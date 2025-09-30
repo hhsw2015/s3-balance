@@ -68,38 +68,37 @@ func (h *S3Handler) initSettings(accessKey, secretKey string, proxyMode, authReq
 
 // RegisterS3Routes 注册S3兼容的路由
 func (h *S3Handler) RegisterS3Routes(router *mux.Router) {
-	// Service operations
+	// 公共路由（不需要认证）
 	router.HandleFunc("/", h.handleListBuckets).Methods("GET")
 
+	// 带认证/虚拟主机的路由
+	protected := router.NewRoute().PathPrefix("/{bucket}").Subrouter()
+	protected.StrictSlash(true)
+
 	// Bucket operations
-	router.HandleFunc("/{bucket}", h.handleBucketOperations).Methods("GET", "HEAD", "PUT", "DELETE")
+	protected.HandleFunc("", h.handleBucketOperations).Methods("GET", "HEAD", "PUT", "DELETE")
+	protected.HandleFunc("/", h.handleBucketOperations).Methods("GET", "HEAD", "PUT", "DELETE")
 
 	// Multipart upload operations - must be registered before generic object operations
-	// Upload part handler - must handle PUT with partNumber and uploadId
-	router.HandleFunc("/{bucket}/{key:.*}", h.handleUploadPart).Methods("PUT").Queries("partNumber", "{partNumber:[0-9]+}", "uploadId", "{uploadId}")
-	// Initiate multipart upload
-	router.HandleFunc("/{bucket}/{key:.*}", h.handleMultipartUpload).Methods("POST").Queries("uploads", "")
-	// List multipart uploads
-	router.HandleFunc("/{bucket}/{key:.*}", h.handleListMultipartUploads).Methods("GET").Queries("uploads", "")
-	// List parts
-	router.HandleFunc("/{bucket}/{key:.*}", h.handleListMultipartParts).Methods("GET").Queries("uploadId", "{uploadId}")
-	// Complete multipart upload
-	router.HandleFunc("/{bucket}/{key:.*}", h.handleCompleteMultipartUpload).Methods("POST").Queries("uploadId", "{uploadId}")
-	// Abort multipart upload
-	router.HandleFunc("/{bucket}/{key:.*}", h.handleAbortMultipartUpload).Methods("DELETE").Queries("uploadId", "{uploadId}")
+	protected.HandleFunc("/{key:.*}", h.handleUploadPart).Methods("PUT").Queries("partNumber", "{partNumber:[0-9]+}", "uploadId", "{uploadId}")
+	protected.HandleFunc("/{key:.*}", h.handleMultipartUpload).Methods("POST").Queries("uploads", "")
+	protected.HandleFunc("/{key:.*}", h.handleListMultipartUploads).Methods("GET").Queries("uploads", "")
+	protected.HandleFunc("/{key:.*}", h.handleListMultipartParts).Methods("GET").Queries("uploadId", "{uploadId}")
+	protected.HandleFunc("/{key:.*}", h.handleCompleteMultipartUpload).Methods("POST").Queries("uploadId", "{uploadId}")
+	protected.HandleFunc("/{key:.*}", h.handleAbortMultipartUpload).Methods("DELETE").Queries("uploadId", "{uploadId}")
 
 	// Object operations - must be registered after multipart operations to avoid conflicts
-	router.HandleFunc("/{bucket}/{key:.*}", h.handleObjectOperations).Methods("GET", "HEAD", "PUT", "DELETE")
+	protected.HandleFunc("/{key:.*}", h.handleObjectOperations).Methods("GET", "HEAD", "PUT", "DELETE")
 
 	// 添加中间件
-	router.Use(middleware.VirtualHost(middleware.VirtualHostConfig{
+	protected.Use(middleware.VirtualHost(middleware.VirtualHostConfig{
 		Enabled: h.virtualHostEnabled,
 		BucketExists: func(name string) bool {
 			_, ok := h.bucketManager.GetBucket(name)
 			return ok
 		},
 	}))
-	router.Use(middleware.BasicAuth(middleware.AuthConfig{
+	protected.Use(middleware.BasicAuth(middleware.AuthConfig{
 		Required:    h.authRequired,
 		Credentials: h.credentials,
 		OnError:     h.sendS3Error,
