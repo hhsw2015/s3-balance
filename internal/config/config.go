@@ -171,9 +171,6 @@ func (c *Config) SetDefaults() {
 	if c.S3API.SecretKey == "" {
 		c.S3API.SecretKey = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 	}
-	// 默认使用代理模式（避免302重定向）
-	c.S3API.ProxyMode = true
-	c.S3API.AuthRequired = false
 }
 
 // ParseMaxSize 解析最大容量字符串为字节
