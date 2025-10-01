@@ -44,7 +44,7 @@ type BucketConfig struct {
 
 // BalancerConfig 负载均衡配置
 type BalancerConfig struct {
-	Strategy          string        `yaml:"strategy"`            // 负载均衡策略: "round-robin", "least-space", "weighted", "consistent-hash"
+	Strategy          string        `yaml:"strategy"`            // 负载均衡策略: "round-robin", "least-space", "weighted"
 	HealthCheckPeriod time.Duration `yaml:"health_check_period"` // 健康检查周期
 	UpdateStatsPeriod time.Duration `yaml:"update_stats_period"` // 统计更新周期
 	RetryAttempts     int           `yaml:"retry_attempts"`      // 重试次数

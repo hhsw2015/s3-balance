@@ -38,7 +38,7 @@ docker run -p 8080:8080 -v $(pwd)/config:/root/config s3-balance
 - `server`：监听地址与超时时间。
 - `database`：GORM 支持 sqlite/mysql/postgres，并存储对象元数据、分片会话等。
 - `buckets`：列出真实与虚拟桶。`virtual: true` 的条目会对外暴露，真实桶为 `virtual: false`。可设置 `path_style` 与 `max_size`。
-- `balancer`：策略 (`round-robin`|`least-space`|`weighted`|`consistent-hash`)、健康检查周期、重试次数与延迟。
+- `balancer`：策略 (`round-robin`|`least-space`|`weighted`)、健康检查周期、重试次数与延迟。
 - `metrics`：是否启用 Prometheus 指标及路径。
 - `s3api`：Access/Secret Key、`proxy_mode`（true=服务代理，false=重定向）、`auth_required`（Basic Auth）、`virtual_host`（Host-style 路由）。
 

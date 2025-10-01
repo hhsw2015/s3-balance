@@ -30,8 +30,6 @@ func NewBalancer(manager *bucket.Manager, cfg *config.BalancerConfig) (*Balancer
 		strategy = NewLeastSpaceStrategy()
 	case "weighted":
 		strategy = NewWeightedStrategy()
-	case "consistent-hash":
-		strategy = NewConsistentHashStrategy()
 	default:
 		return nil, fmt.Errorf("unknown balancer strategy: %s", cfg.Strategy)
 	}
@@ -124,8 +122,6 @@ func (b *Balancer) SetStrategy(strategyName string) error {
 		strategy = NewLeastSpaceStrategy()
 	case "weighted":
 		strategy = NewWeightedStrategy()
-	case "consistent-hash":
-		strategy = NewConsistentHashStrategy()
 	default:
 		return fmt.Errorf("unknown balancer strategy: %s", strategyName)
 	}
