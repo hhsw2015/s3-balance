@@ -3,6 +3,7 @@ module github.com/DullJZ/s3-balance
 go 1.24.5
 
 require (
+	github.com/DullJZ/s3-validate v0.0.0-20250930120412-fc4ea70939f6
 	github.com/aws/aws-sdk-go-v2 v1.39.2
 	github.com/aws/aws-sdk-go-v2/config v1.31.1
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.5

@@ -98,7 +98,7 @@ func (h *S3Handler) RegisterS3Routes(router *mux.Router) {
 			return ok
 		},
 	}))
-	protected.Use(middleware.BasicAuth(middleware.AuthConfig{
+	protected.Use(middleware.S3Signature(middleware.S3SignatureConfig{
 		Required:    h.authRequired,
 		Credentials: h.credentials,
 		OnError:     h.sendS3Error,
