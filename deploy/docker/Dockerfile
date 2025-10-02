@@ -3,7 +3,7 @@ FROM golang:1.24.5-alpine AS builder
 
 # 安装构建依赖
 # 注意：不再需要 gcc, musl-dev, sqlite-dev，因为使用 modernc.org/sqlite 纯Go驱动
-RUN apk add --no-cache git ca-certificates tzdata
+RUN apk add --no-cache git ca-certificates tzdata upx
 
 # 设置工作目录
 WORKDIR /build
@@ -15,12 +15,17 @@ RUN go mod download && go mod tidy
 # 复制源码
 COPY . .
 
+# 添加构建参数以支持多架构
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
 # 构建应用
 # CGO_ENABLED=0: 禁用CGO，使用纯Go SQLite驱动 (modernc.org/sqlite)
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
     -ldflags="-w -s -X main.version=$(git describe --tags --always)" \
     -o s3-balance \
-    cmd/s3-balance/main.go
+    cmd/s3-balance/main.go && \
+    upx --best --lzma s3-balance || true
 
 # 运行时镜像 - 使用轻量级Alpine Linux
 FROM alpine:latest
