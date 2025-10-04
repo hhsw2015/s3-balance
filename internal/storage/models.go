@@ -87,7 +87,8 @@ type AccessLog struct {
 	Size         int64     `gorm:"default:0" json:"size"`
 	ClientIP     string    `gorm:"size:64" json:"client_ip"`
 	UserAgent    string    `gorm:"size:512" json:"user_agent"`
-	Success      bool      `gorm:"default:true" json:"success"`
+	Host         string    `gorm:"size:255" json:"host"`
+	Success      bool      `gorm:"not null" json:"success"`
 	ErrorMsg     string    `gorm:"type:text" json:"error_msg,omitempty"`
 	ResponseTime int64     `gorm:"default:0" json:"response_time"` // 响应时间（毫秒）
 	CreatedAt    time.Time `gorm:"index" json:"created_at"`

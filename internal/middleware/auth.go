@@ -12,7 +12,7 @@ import (
 type S3SignatureConfig struct {
 	Required      func() bool
 	Credentials   func() (string, string)
-	OnError       func(http.ResponseWriter, string, string, string)
+	OnError       func(http.ResponseWriter, *http.Request, string, string, string)
 	SignatureHost func() string // 用于签名验证的Host（为空则使用请求的Host）
 }
 
@@ -57,7 +57,7 @@ func S3Signature(cfg S3SignatureConfig) func(http.Handler) http.Handler {
 
 			result, err := verifier.Verify(r.Context(), r)
 			if err != nil {
-				invokeOnError(w, cfg, "SignatureDoesNotMatch", err.Error())
+				invokeOnError(w, r, cfg, "SignatureDoesNotMatch", err.Error())
 				return
 			}
 
@@ -69,9 +69,9 @@ func S3Signature(cfg S3SignatureConfig) func(http.Handler) http.Handler {
 	}
 }
 
-func invokeOnError(w http.ResponseWriter, cfg S3SignatureConfig, code, message string) {
+func invokeOnError(w http.ResponseWriter, r *http.Request, cfg S3SignatureConfig, code, message string) {
 	if cfg.OnError != nil {
-		cfg.OnError(w, code, message, "")
+		cfg.OnError(w, r, code, message, "")
 		return
 	}
 	http.Error(w, message, http.StatusForbidden)

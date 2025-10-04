@@ -367,13 +367,14 @@ func (s *Service) CleanExpiredSessions() error {
 }
 
 // RecordAccessLog 记录访问日志
-func (s *Service) RecordAccessLog(action, key, bucketName, clientIP, userAgent string, size int64, success bool, errorMsg string, responseTime int64) error {
+func (s *Service) RecordAccessLog(action, key, bucketName, clientIP, userAgent, host string, size int64, success bool, errorMsg string, responseTime int64) error {
 	log := &AccessLog{
 		Action:       action,
 		Key:          key,
 		BucketName:   bucketName,
 		ClientIP:     clientIP,
 		UserAgent:    userAgent,
+		Host:         host,
 		Size:         size,
 		Success:      success,
 		ErrorMsg:     errorMsg,

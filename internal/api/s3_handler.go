@@ -24,11 +24,11 @@ type S3Handler struct {
 }
 
 type handlerSettings struct {
-	accessKey    string
-	secretKey    string
-	proxyMode    bool
-	authRequired bool
-	virtualHost  bool
+	accessKey     string
+	secretKey     string
+	proxyMode     bool
+	authRequired  bool
+	virtualHost   bool
 	signatureHost string
 }
 
@@ -94,6 +94,7 @@ func (h *S3Handler) RegisterS3Routes(router *mux.Router) {
 	protected.HandleFunc("/{key:.*}", h.handleObjectOperations).Methods("GET", "HEAD", "PUT", "DELETE")
 
 	// 添加中间件
+	protected.Use(h.accessLogMiddleware)
 	protected.Use(middleware.VirtualHost(middleware.VirtualHostConfig{
 		Enabled: h.virtualHostEnabled,
 		BucketExists: func(name string) bool {
@@ -104,10 +105,9 @@ func (h *S3Handler) RegisterS3Routes(router *mux.Router) {
 	protected.Use(middleware.S3Signature(middleware.S3SignatureConfig{
 		Required:      h.authRequired,
 		Credentials:   h.credentials,
-		OnError:       h.sendS3Error,
+		OnError:       h.handleAuthError,
 		SignatureHost: h.signatureHost,
 	}))
-	protected.Use(h.accessLogMiddleware)
 }
 
 func (h *S3Handler) loadSettings() handlerSettings {

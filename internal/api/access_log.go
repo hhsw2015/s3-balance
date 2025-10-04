@@ -2,6 +2,7 @@ package api
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"log"
 	"net"
@@ -10,6 +11,12 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+)
+
+type accessLogContextKey string
+
+const (
+	errorCodeKey accessLogContextKey = "errorCode"
 )
 
 func (h *S3Handler) accessLogMiddleware(next http.Handler) http.Handler {
@@ -34,7 +41,10 @@ func (h *S3Handler) accessLogMiddleware(next http.Handler) http.Handler {
 		success := lrw.statusCode < 400
 		errMsg := ""
 		if !success {
-			if code := lrw.Header().Get("X-Amz-Error-Code"); code != "" {
+			// 优先使用context中的错误码（auth错误设置的）
+			if code, ok := r.Context().Value(errorCodeKey).(string); ok && code != "" {
+				errMsg = code
+			} else if code := lrw.Header().Get("X-Amz-Error-Code"); code != "" {
 				errMsg = code
 			} else {
 				errMsg = http.StatusText(lrw.statusCode)
@@ -50,12 +60,21 @@ func (h *S3Handler) accessLogMiddleware(next http.Handler) http.Handler {
 func (h *S3Handler) recordAccessLog(r *http.Request, action, bucket, key string, size int64, success bool, errMsg string, duration time.Duration) {
 	clientIP := extractClientIP(r)
 	userAgent := r.UserAgent()
+	host := r.Host
 	// 异步记录日志，避免阻塞请求响应
 	go func() {
-		if err := h.storage.RecordAccessLog(action, key, bucket, clientIP, userAgent, size, success, errMsg, duration.Milliseconds()); err != nil {
+		if err := h.storage.RecordAccessLog(action, key, bucket, clientIP, userAgent, host, size, success, errMsg, duration.Milliseconds()); err != nil {
 			log.Printf("failed to record access log: %v", err)
 		}
 	}()
+}
+
+func (h *S3Handler) handleAuthError(w http.ResponseWriter, r *http.Request, code, message, resource string) {
+	// 将错误码存入context，供accessLogMiddleware使用
+	ctx := context.WithValue(r.Context(), errorCodeKey, code)
+	*r = *r.WithContext(ctx)
+
+	h.sendS3Error(w, code, message, resource)
 }
 
 type loggingResponseWriter struct {
