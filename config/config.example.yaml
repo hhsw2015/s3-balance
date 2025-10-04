@@ -138,3 +138,9 @@ s3api:
   
   # 是否需要认证（开启后使用 Basic Auth，凭据来自 access_key/secret_key）
   auth_required: true
+
+  # 用于签名验证的Host（可选）
+  # 当服务前有 nginx 等反向代理时，可以设置此项为客户端实际访问的域名
+  # 留空则使用请求中的 Host 头
+  # 示例: "s3.example.com" 或 "s3.example.com:8080"
+  host: ""

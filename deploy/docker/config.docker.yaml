@@ -57,3 +57,4 @@ s3api:
   virtual_host: false
   proxy_mode: true
   auth_required: true
+  host: ""

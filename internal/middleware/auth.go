@@ -10,9 +10,10 @@ import (
 
 // S3SignatureConfig controls S3 signature validation.
 type S3SignatureConfig struct {
-	Required    func() bool
-	Credentials func() (string, string)
-	OnError     func(http.ResponseWriter, string, string, string)
+	Required      func() bool
+	Credentials   func() (string, string)
+	OnError       func(http.ResponseWriter, string, string, string)
+	SignatureHost func() string // 用于签名验证的Host（为空则使用请求的Host）
 }
 
 // credentialsProvider implements s3validate.CredentialsProvider interface.
@@ -45,6 +46,13 @@ func S3Signature(cfg S3SignatureConfig) func(http.Handler) http.Handler {
 			if !required {
 				next.ServeHTTP(w, r)
 				return
+			}
+
+			// 如果配置了签名验证的Host，覆盖请求的Host
+			if cfg.SignatureHost != nil {
+				if signatureHost := cfg.SignatureHost(); signatureHost != "" {
+					r.Host = signatureHost
+				}
 			}
 
 			result, err := verifier.Verify(r.Context(), r)

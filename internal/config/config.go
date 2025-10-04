@@ -65,6 +65,7 @@ type S3APIConfig struct {
 	VirtualHost  bool   `yaml:"virtual_host"`  // 是否使用虚拟主机模式
 	ProxyMode    bool   `yaml:"proxy_mode"`    // 是否使用代理模式（而非重定向）
 	AuthRequired bool   `yaml:"auth_required"` // 是否需要认证
+	Host         string `yaml:"host"`          // 用于签名验证的Host（为空则使用请求的Host）
 }
 
 // DatabaseConfig 数据库配置

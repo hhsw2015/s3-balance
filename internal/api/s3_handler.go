@@ -29,6 +29,7 @@ type handlerSettings struct {
 	proxyMode    bool
 	authRequired bool
 	virtualHost  bool
+	signatureHost string
 }
 
 // NewS3Handler 创建新的S3兼容API处理器
@@ -43,6 +44,7 @@ func NewS3Handler(
 	proxyMode bool,
 	authRequired bool,
 	virtualHost bool,
+	signatureHost string,
 
 ) *S3Handler {
 	handler := &S3Handler{
@@ -52,17 +54,18 @@ func NewS3Handler(
 		storage:       storage,
 		metrics:       metrics,
 	}
-	handler.initSettings(accessKey, secretKey, proxyMode, authRequired, virtualHost)
+	handler.initSettings(accessKey, secretKey, proxyMode, authRequired, virtualHost, signatureHost)
 	return handler
 }
 
-func (h *S3Handler) initSettings(accessKey, secretKey string, proxyMode, authRequired, virtualHost bool) {
+func (h *S3Handler) initSettings(accessKey, secretKey string, proxyMode, authRequired, virtualHost bool, signatureHost string) {
 	h.settings.Store(handlerSettings{
-		accessKey:    accessKey,
-		secretKey:    secretKey,
-		proxyMode:    proxyMode,
-		authRequired: authRequired,
-		virtualHost:  virtualHost,
+		accessKey:     accessKey,
+		secretKey:     secretKey,
+		proxyMode:     proxyMode,
+		authRequired:  authRequired,
+		virtualHost:   virtualHost,
+		signatureHost: signatureHost,
 	})
 }
 
@@ -99,10 +102,12 @@ func (h *S3Handler) RegisterS3Routes(router *mux.Router) {
 		},
 	}))
 	protected.Use(middleware.S3Signature(middleware.S3SignatureConfig{
-		Required:    h.authRequired,
-		Credentials: h.credentials,
-		OnError:     h.sendS3Error,
+		Required:      h.authRequired,
+		Credentials:   h.credentials,
+		OnError:       h.sendS3Error,
+		SignatureHost: h.signatureHost,
 	}))
+	protected.Use(h.accessLogMiddleware)
 }
 
 func (h *S3Handler) loadSettings() handlerSettings {
@@ -129,15 +134,20 @@ func (h *S3Handler) proxyModeEnabled() bool {
 	return h.loadSettings().proxyMode
 }
 
+func (h *S3Handler) signatureHost() string {
+	return h.loadSettings().signatureHost
+}
+
 func (h *S3Handler) UpdateS3APIConfig(cfg *config.S3APIConfig) {
 	if cfg == nil {
 		return
 	}
 	h.settings.Store(handlerSettings{
-		accessKey:    cfg.AccessKey,
-		secretKey:    cfg.SecretKey,
-		proxyMode:    cfg.ProxyMode,
-		authRequired: cfg.AuthRequired,
-		virtualHost:  cfg.VirtualHost,
+		accessKey:     cfg.AccessKey,
+		secretKey:     cfg.SecretKey,
+		proxyMode:     cfg.ProxyMode,
+		authRequired:  cfg.AuthRequired,
+		virtualHost:   cfg.VirtualHost,
+		signatureHost: cfg.Host,
 	})
 }

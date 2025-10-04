@@ -92,6 +92,7 @@ func main() {
 		cfg.S3API.ProxyMode,
 		cfg.S3API.AuthRequired,
 		cfg.S3API.VirtualHost,
+		cfg.S3API.Host,
 	)
 
 	// 注册配置热更新回调
