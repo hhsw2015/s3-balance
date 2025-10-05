@@ -8,7 +8,7 @@ S3 Balance is an S3-compatible load balancer written in Go. It automatically sel
 - **Multi-bucket Scheduling**: Supports strategies like round-robin, least-space, weighted, and consistent hashing, with hot-swapping capabilities.
 - **Health Monitoring**: Periodic health checks and capacity statistics, with Prometheus metrics exposed at `/metrics`.
 - **Virtual Bucket Mapping**: Only virtual bucket names are exposed externally, while real buckets are transparently scheduled in the backend.
-- **Proxy or Redirect Mode**: Choose between service-forwarded data or pre-signed URLs for direct client connections.
+- **Proxy or Redirect Mode**: Choose between service-forwarded data or 302 redirects for direct client connections.
 - **SigV4 Authentication**: When `s3api.auth_required` is enabled, AWS Signature Version 4 requests are validated using `github.com/DullJZ/s3-validate`.
 
 ## Quick Start
