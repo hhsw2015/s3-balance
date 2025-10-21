@@ -10,6 +10,7 @@ import (
 	"github.com/DullJZ/s3-balance/internal/config"
 	"github.com/DullJZ/s3-balance/internal/health"
 	"github.com/DullJZ/s3-balance/internal/metrics"
+	"github.com/DullJZ/s3-balance/internal/storage"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -49,15 +50,17 @@ type Manager struct {
 	healthMonitor *health.Monitor
 	statsMonitor  *health.StatsMonitor
 	monitorCtx    context.Context
+	storage       *storage.Service
 }
 
 // NewManager 创建新的存储桶管理器
-func NewManager(cfg *config.Config, metrics *metrics.Metrics) (*Manager, error) {
+func NewManager(cfg *config.Config, metrics *metrics.Metrics, storageService *storage.Service) (*Manager, error) {
 	m := &Manager{
 		buckets:  make(map[string]*BucketInfo),
 		config:   cfg,
 		stopChan: make(chan struct{}),
 		metrics:  metrics,
+		storage:  storageService,
 	}
 
 	// 初始化所有存储桶客户端
@@ -84,7 +87,47 @@ func NewManager(cfg *config.Config, metrics *metrics.Metrics) (*Manager, error) 
 	// 初始化健康监控
 	m.initHealthMonitoring()
 
+	// 加载持久化的操作计数
+	m.loadOperationCounts()
+
 	return m, nil
+}
+
+func (m *Manager) loadOperationCounts() {
+	if m.storage == nil {
+		return
+	}
+
+	counts, err := m.storage.GetBucketOperationCounts()
+	if err != nil {
+		log.Printf("Failed to load bucket operation counts: %v", err)
+		return
+	}
+
+	m.mu.RLock()
+	buckets := make(map[string]*BucketInfo, len(m.buckets))
+	for name, info := range m.buckets {
+		buckets[name] = info
+	}
+	m.mu.RUnlock()
+
+	for name, info := range buckets {
+		if info == nil {
+			continue
+		}
+
+		oc, ok := counts[name]
+		if !ok {
+			continue
+		}
+
+		if info.SetOperationCount(OperationTypeA, oc.CountA) {
+			log.Printf("Bucket %s disabled after exceeding A-type operation limit (persisted)", name)
+		}
+		if info.SetOperationCount(OperationTypeB, oc.CountB) {
+			log.Printf("Bucket %s disabled after exceeding B-type operation limit (persisted)", name)
+		}
+	}
 }
 
 // createS3Client 创建S3客户端
@@ -324,6 +367,45 @@ func (b *BucketInfo) RecordOperation(category OperationCategory) bool {
 	return false
 }
 
+// SetOperationCount 设置指定类别的操作计数并检查上限
+func (b *BucketInfo) SetOperationCount(category OperationCategory, value int64) bool {
+	if b == nil {
+		return false
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.Config.Virtual {
+		return false
+	}
+
+	var limit int64
+
+	switch category {
+	case OperationTypeA:
+		b.operationCountA = value
+		limit = int64(b.Config.OperationLimits.TypeA)
+	case OperationTypeB:
+		b.operationCountB = value
+		limit = int64(b.Config.OperationLimits.TypeB)
+	default:
+		return false
+	}
+
+	if limit <= 0 {
+		return false
+	}
+
+	if !b.operationLimitReached && value >= limit {
+		b.Available = false
+		b.operationLimitReached = true
+		return true
+	}
+
+	return false
+}
+
 // IsVirtual 检查是否为虚拟存储桶
 func (b *BucketInfo) IsVirtual() bool {
 	b.mu.RLock()
@@ -427,6 +509,8 @@ func (m *Manager) UpdateConfig(newConfig *config.Config) error {
 	}
 
 	m.mu.Unlock()
+
+	m.loadOperationCounts()
 
 	if restartMonitors {
 		m.startMonitors()

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +11,12 @@ import (
 // Service 存储服务（管理对象元数据）
 type Service struct {
 	db *gorm.DB
+}
+
+// OperationCounts 后端操作计数
+type OperationCounts struct {
+	CountA int64
+	CountB int64
 }
 
 // NewService 创建新的存储服务
@@ -252,6 +259,84 @@ func (s *Service) updateBucketStats(bucketName string) error {
 	}
 
 	return nil
+}
+
+func (s *Service) ensureBucketStats(bucketName string) (*BucketStats, error) {
+	if bucketName == "" {
+		return nil, fmt.Errorf("bucket name cannot be empty")
+	}
+
+	stats := &BucketStats{}
+	err := s.db.Where("bucket_name = ?", bucketName).First(stats).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		stats = &BucketStats{BucketName: bucketName, LastCheckedAt: time.Now()}
+		if createErr := s.db.Create(stats).Error; createErr != nil {
+			// 如果在并发创建下出现重复键，忽略并再次查询
+			if errors.Is(createErr, gorm.ErrDuplicatedKey) {
+				if retryErr := s.db.Where("bucket_name = ?", bucketName).First(stats).Error; retryErr != nil {
+					return nil, fmt.Errorf("failed to fetch bucket stats after duplicate: %w", retryErr)
+				}
+			} else {
+				return nil, fmt.Errorf("failed to create bucket stats: %w", createErr)
+			}
+		}
+		return stats, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to fetch bucket stats: %w", err)
+	}
+
+	return stats, nil
+}
+
+// IncrementBucketOperation 增加指定存储桶的操作计数
+func (s *Service) IncrementBucketOperation(bucketName, category string) (int64, error) {
+	if _, err := s.ensureBucketStats(bucketName); err != nil {
+		return 0, err
+	}
+
+	var field string
+	switch category {
+	case "A":
+		field = "operation_count_a"
+	case "B":
+		field = "operation_count_b"
+	default:
+		return 0, fmt.Errorf("unknown operation category: %s", category)
+	}
+
+	if err := s.db.Model(&BucketStats{}).
+		Where("bucket_name = ?", bucketName).
+		UpdateColumn(field, gorm.Expr(field+" + ?", 1)).Error; err != nil {
+		return 0, fmt.Errorf("failed to increment %s for bucket %s: %w", field, bucketName, err)
+	}
+
+	var count int64
+	if err := s.db.Model(&BucketStats{}).
+		Where("bucket_name = ?", bucketName).
+		Select(field).
+		Scan(&count).Error; err != nil {
+		return 0, fmt.Errorf("failed to fetch updated %s for bucket %s: %w", field, bucketName, err)
+	}
+
+	return count, nil
+}
+
+// GetBucketOperationCounts 获取所有存储桶的操作计数
+func (s *Service) GetBucketOperationCounts() (map[string]OperationCounts, error) {
+	var stats []BucketStats
+	if err := s.db.Find(&stats).Error; err != nil {
+		return nil, fmt.Errorf("failed to list bucket stats: %w", err)
+	}
+
+	result := make(map[string]OperationCounts, len(stats))
+	for _, st := range stats {
+		result[st.BucketName] = OperationCounts{
+			CountA: st.OperationCountA,
+			CountB: st.OperationCountB,
+		}
+	}
+
+	return result, nil
 }
 
 // RecordUploadSession 记录上传会话

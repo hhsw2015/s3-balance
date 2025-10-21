@@ -45,11 +45,14 @@ func main() {
 	}
 	defer database.Close()
 
+	// 创建存储服务
+	storageService := storage.NewService(database.GetDB())
+
 	// 创建指标服务
 	metricsService := metrics.New()
 
 	// 创建存储桶管理器
-	bucketManager, err := bucket.NewManager(cfg, metricsService)
+	bucketManager, err := bucket.NewManager(cfg, metricsService, storageService)
 	if err != nil {
 		log.Fatalf("Failed to create bucket manager: %v", err)
 	}
@@ -73,9 +76,6 @@ func main() {
 		15*time.Minute, // 上传URL有效期
 		60*time.Minute, // 下载URL有效期
 	)
-
-	// 创建存储服务
-	storageService := storage.NewService(database.GetDB())
 
 	// 启动定期清理过期上传会话的任务
 	startSessionCleaner(ctx, storageService)
