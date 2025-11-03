@@ -9,9 +9,10 @@ import (
 
 // MonthlyArchiver 月度统计归档器
 type MonthlyArchiver struct {
-	storage  *storage.Service
-	ticker   *time.Ticker
-	stopChan chan struct{}
+	storage          *storage.Service
+	ticker           *time.Ticker
+	stopChan         chan struct{}
+	lastArchivedDate string // 格式: "2025-01" - 记录上次归档的月份
 }
 
 // NewMonthlyArchiver 创建月度归档器
@@ -52,10 +53,13 @@ func (m *MonthlyArchiver) Stop() {
 // checkAndArchive 检查并归档统计数据
 func (m *MonthlyArchiver) checkAndArchive() {
 	now := time.Now()
+	lastMonth := now.AddDate(0, -1, 0)
+	lastMonthKey := lastMonth.Format("2006-01")
 
-	// 如果是每月的第一天凌晨，归档上个月的数据
-	if now.Day() == 1 && now.Hour() < 1 {
+	// 如果是每月的第一天，且上个月还未归档，则归档上个月的数据
+	if now.Day() == 1 && m.lastArchivedDate != lastMonthKey {
 		m.archiveLastMonth()
+		m.lastArchivedDate = lastMonthKey
 	}
 
 	// 每天都归档当前月份（实时更新）
