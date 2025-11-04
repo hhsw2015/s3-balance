@@ -17,6 +17,7 @@ import (
 	"github.com/DullJZ/s3-balance/internal/config"
 	"github.com/DullJZ/s3-balance/internal/database"
 	"github.com/DullJZ/s3-balance/internal/metrics"
+	"github.com/DullJZ/s3-balance/internal/middleware"
 	"github.com/DullJZ/s3-balance/internal/storage"
 	"github.com/DullJZ/s3-balance/pkg/presigner"
 	"github.com/gorilla/mux"
@@ -122,6 +123,20 @@ func main() {
 	if cfg.Metrics.Enabled {
 		router.Path(cfg.Metrics.Path).Handler(promhttp.Handler())
 		log.Printf("Metrics server enabled at %s", cfg.Metrics.Path)
+	}
+
+	// 注册管理API路由（如果启用）
+	// 必须在S3路由之前注册，因为S3路由使用 /{bucket} 通配符会匹配所有路径
+	if cfg.API.Enabled {
+		log.Println("Management API enabled")
+		adminHandler := api.NewAdminHandler(bucketManager, lb, cfg)
+
+		// 创建子路由器并应用Token认证中间件
+		apiRouter := router.PathPrefix("/api").Subrouter()
+		apiRouter.Use(middleware.TokenAuthMiddleware(cfg.API.Token))
+		adminHandler.RegisterRoutes(apiRouter)
+
+		log.Printf("Management API endpoints available at /api/*")
 	}
 
 	// 运行在S3兼容模式
