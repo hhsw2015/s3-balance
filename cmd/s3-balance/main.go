@@ -18,6 +18,7 @@ import (
 	"github.com/DullJZ/s3-balance/internal/database"
 	"github.com/DullJZ/s3-balance/internal/metrics"
 	"github.com/DullJZ/s3-balance/internal/middleware"
+	"github.com/DullJZ/s3-balance/internal/scheduler"
 	"github.com/DullJZ/s3-balance/internal/storage"
 	"github.com/DullJZ/s3-balance/pkg/presigner"
 	"github.com/gorilla/mux"
@@ -80,6 +81,11 @@ func main() {
 
 	// 启动定期清理过期上传会话的任务
 	startSessionCleaner(ctx, storageService)
+
+	// 启动月度统计归档任务（每小时检查一次）
+	monthlyArchiver := scheduler.NewMonthlyArchiver(storageService, 1*time.Hour)
+	monthlyArchiver.Start()
+	defer monthlyArchiver.Stop()
 
 	// 创建S3兼容API处理器
 	s3Handler := api.NewS3Handler(
