@@ -71,10 +71,11 @@ type HealthResponse struct {
 }
 
 // RegisterRoutes 注册管理API路由
+// 注意: router 参数应该是已经带有 /api 前缀的子路由器
 func (h *AdminHandler) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/api/buckets", h.ListBuckets).Methods(http.MethodGet)
-	router.HandleFunc("/api/buckets/{name}", h.GetBucketDetail).Methods(http.MethodGet)
-	router.HandleFunc("/api/health", h.GetHealth).Methods(http.MethodGet)
+	router.HandleFunc("/buckets", h.ListBuckets).Methods(http.MethodGet)
+	router.HandleFunc("/buckets/{name}", h.GetBucketDetail).Methods(http.MethodGet)
+	router.HandleFunc("/health", h.GetHealth).Methods(http.MethodGet)
 }
 
 // ListBuckets 获取存储桶列表
