@@ -50,6 +50,7 @@ logs/
 # AI doc
 AGENTS.md
 CLAUDE.md
+docs/
 
 # Generated files
 s3-balance
