@@ -135,7 +135,7 @@ func main() {
 	// 必须在S3路由之前注册，因为S3路由使用 /{bucket} 通配符会匹配所有路径
 	if cfg.API.Enabled {
 		log.Println("Management API enabled")
-		adminHandler := api.NewAdminHandler(bucketManager, lb, cfg)
+		adminHandler := api.NewAdminHandler(bucketManager, lb, cfg, configManager)
 
 		// 创建子路由器并应用Token认证中间件
 		apiRouter := router.PathPrefix("/api").Subrouter()
