@@ -184,12 +184,16 @@ func (m *Manager) initHealthMonitoring() {
 
 	// 创建S3健康检查器
 	healthChecker := health.NewS3Checker(healthConfig)
+	// 设置操作记录器以统计健康检查的 ListObjects 操作
+	healthChecker.SetOperationRecorder(reporter)
 
 	// 创建健康监控器
 	m.healthMonitor = health.NewMonitor(healthChecker, reporter)
 
 	// 创建统计收集器
 	statsCollector := health.NewS3StatsCollector(30 * time.Second)
+	// 设置操作记录器以统计 Stats 收集的 ListObjects 操作
+	statsCollector.SetOperationRecorder(reporter)
 
 	// 创建统计监控器
 	m.statsMonitor = health.NewStatsMonitor(
