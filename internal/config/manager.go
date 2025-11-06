@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -128,7 +129,7 @@ func (m *Manager) watchConfig() {
 
 			// 只处理修改和重命名事件
 			if event.Op&fsnotify.Write == fsnotify.Write ||
-			   event.Op&fsnotify.Rename == fsnotify.Rename {
+				event.Op&fsnotify.Rename == fsnotify.Rename {
 				log.Printf("Config file %s modified (detected by fsnotify), reloading...", m.configFile)
 
 				// 更新最后修改时间以避免轮询重复触发
@@ -366,39 +367,36 @@ func (m *Manager) backupConfigFile() error {
 
 // writeConfigFile 将配置写入 YAML 文件
 func (m *Manager) writeConfigFile(cfg *Config) error {
-	// 临时文件，确保原子性
-	tmpFile := m.configFile + ".tmp"
-
-	file, err := os.OpenFile(tmpFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to create temp config file: %w", err)
-	}
-	defer file.Close()
-
-	encoder := yaml.NewEncoder(file)
+	// 先编码到缓冲区，避免在写入过程中损坏原文件
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
 	encoder.SetIndent(2)
 
 	if err := encoder.Encode(cfg); err != nil {
-		file.Close()
-		os.Remove(tmpFile)
 		return fmt.Errorf("failed to encode config: %w", err)
 	}
 
 	if err := encoder.Close(); err != nil {
-		file.Close()
-		os.Remove(tmpFile)
 		return fmt.Errorf("failed to close encoder: %w", err)
 	}
 
-	if err := file.Close(); err != nil {
-		os.Remove(tmpFile)
-		return fmt.Errorf("failed to close temp file: %w", err)
+	file, err := os.OpenFile(m.configFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open config file: %w", err)
 	}
 
-	// 原子性替换原文件
-	if err := os.Rename(tmpFile, m.configFile); err != nil {
-		os.Remove(tmpFile)
-		return fmt.Errorf("failed to replace config file: %w", err)
+	if _, err := file.Write(buf.Bytes()); err != nil {
+		file.Close()
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return fmt.Errorf("failed to sync config file: %w", err)
+	}
+
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("failed to close config file: %w", err)
 	}
 
 	return nil
