@@ -32,6 +32,7 @@ type BucketInfo struct {
 	Config                config.BucketConfig
 	Client                *s3.Client
 	UsedSize              int64     // 已使用容量（字节）
+	ObjectCount           int64     // 对象数量
 	Available             bool      // 是否可用（由health监控更新）
 	LastChecked           time.Time // 最后检查时间（由health监控更新）
 	mu                    sync.RWMutex
@@ -318,6 +319,13 @@ func (b *BucketInfo) GetUsedSize() int64 {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	return b.UsedSize
+}
+
+// GetObjectCount 获取对象数量
+func (b *BucketInfo) GetObjectCount() int64 {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.ObjectCount
 }
 
 // UpdateUsedSize 更新已使用容量

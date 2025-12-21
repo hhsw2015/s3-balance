@@ -44,6 +44,7 @@ type BucketResponse struct {
 	UsedSize        int64     `json:"used_size"`
 	AvailableSize   int64     `json:"available_size"`
 	UsagePercent    float64   `json:"usage_percent"`
+	ObjectCount     int64     `json:"object_count"`
 	Weight          int       `json:"weight"`
 	Enabled         bool      `json:"enabled"`
 	Available       bool      `json:"available"`
@@ -59,18 +60,18 @@ type BucketResponse struct {
 
 // BucketsListResponse 存储桶列表响应结构
 type BucketsListResponse struct {
-	Total   int                `json:"total"`
-	Buckets []BucketResponse   `json:"buckets"`
+	Total   int              `json:"total"`
+	Buckets []BucketResponse `json:"buckets"`
 }
 
 // HealthResponse 健康状态响应结构
 type HealthResponse struct {
-	Status          string    `json:"status"`
-	Timestamp       time.Time `json:"timestamp"`
-	LoadBalancer    string    `json:"load_balancer_strategy"`
-	TotalBuckets    int       `json:"total_buckets"`
-	AvailableBuckets int      `json:"available_buckets"`
-	Database        string    `json:"database_type"`
+	Status           string    `json:"status"`
+	Timestamp        time.Time `json:"timestamp"`
+	LoadBalancer     string    `json:"load_balancer_strategy"`
+	TotalBuckets     int       `json:"total_buckets"`
+	AvailableBuckets int       `json:"available_buckets"`
+	Database         string    `json:"database_type"`
 }
 
 // RegisterRoutes 注册管理API路由
@@ -205,6 +206,7 @@ func (h *AdminHandler) convertBucketInfo(b *bucket.BucketInfo) BucketResponse {
 		MaxSize:         b.Config.MaxSize,
 		MaxSizeBytes:    b.Config.MaxSizeBytes,
 		UsedSize:        b.UsedSize,
+		ObjectCount:     b.GetObjectCount(),
 		Weight:          b.Config.Weight,
 		Enabled:         b.Config.Enabled,
 		Available:       b.Available,

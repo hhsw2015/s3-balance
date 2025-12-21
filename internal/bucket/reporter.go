@@ -60,6 +60,7 @@ func (r *MetricsReporter) ReportStats(stats *health.Stats) {
 	if exists {
 		bucket.mu.Lock()
 		bucket.UsedSize = stats.UsedSize
+		bucket.ObjectCount = stats.ObjectCount
 		bucket.mu.Unlock()
 
 		// 更新 Prometheus 指标
