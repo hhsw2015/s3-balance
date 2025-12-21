@@ -88,12 +88,12 @@ go build -o s3-balance cmd/s3-balance/main.go
 - `database`：GORM 支持 sqlite/mysql/postgres，并存储对象元数据、分片会话等。
 - `buckets`：列出真实与虚拟桶。`virtual: true` 的条目会对外暴露，真实桶为 `virtual: false`。可设置 `path_style` 与 `max_size`。
 - `balancer`：策略 (`round-robin`|`least-space`|`weighted`)、健康检查周期、重试次数与延迟。
-- `metrics`：是否启用 Prometheus 指标及路径。
+- `metrics`：是否启用 Prometheus 指标、路径与可选抓取 Token。
 - `s3api`：Access/Secret Key、`proxy_mode`（true=服务代理，false=重定向）、`auth_required`（SigV4 校验）、`virtual_host`（Host-style 路由）。
 
 ## API & 测试
 
-- 默认监听 `http://localhost:8080`，支持 `GET /health` 健康检查、`GET /metrics` 指标。
+- 默认监听 `http://localhost:8080`，支持 `GET /health` 健康检查、`GET /metrics` 指标（配置 `metrics.token` 后需携带 `Authorization: Bearer <token>`）。
 - 可使用 AWS CLI、s3cmd、MinIO Client 或 `python3 test_virtual_bucket_s3.py` 验证兼容性；脚本运行前需修改 endpoint 与凭据。
 
 ## 项目结构

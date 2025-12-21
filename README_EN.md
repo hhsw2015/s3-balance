@@ -86,12 +86,12 @@ go build -o s3-balance cmd/s3-balance/main.go
 - `database`: GORM supports sqlite/mysql/postgres and stores object metadata, multipart sessions, etc.
 - `buckets`: Lists real and virtual buckets. Entries with `virtual: true` are exposed externally, while real buckets are marked as `virtual: false`. Supports `path_style` and `max_size` settings.
 - `balancer`: Strategy (`round-robin`|`least-space`|`weighted`), health check intervals, retry counts, and delays.
-- `metrics`: Whether to enable Prometheus metrics and their path.
+- `metrics`: Whether to enable Prometheus metrics, the path, and optional scrape token.
 - `s3api`: Access/Secret Key, `proxy_mode` (true=proxy, false=redirect), `auth_required` (SigV4 validation), `virtual_host` (host-style routing).
 
 ## API & Testing
 
-- Default listening at `http://localhost:8080`, supports `GET /health` for health checks and `GET /metrics` for metrics.
+- Default listening at `http://localhost:8080`, supports `GET /health` for health checks and `GET /metrics` for metrics (if `metrics.token` is set, send `Authorization: Bearer <token>`).
 - Compatibility can be verified using AWS CLI, s3cmd, MinIO Client, or `python3 test_virtual_bucket_s3.py`. Modify the endpoint and credentials in the script before running.
 
 ## Project Structure

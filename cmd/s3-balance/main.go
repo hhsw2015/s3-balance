@@ -137,8 +137,16 @@ func main() {
 
 	// 添加指标端点
 	if cfg.Metrics.Enabled {
-		router.Path(cfg.Metrics.Path).Handler(promhttp.Handler())
-		log.Printf("Metrics server enabled at %s", cfg.Metrics.Path)
+		metricsHandler := promhttp.Handler()
+		if cfg.Metrics.Token != "" {
+			metricsHandler = middleware.TokenAuthMiddleware(cfg.Metrics.Token)(metricsHandler)
+		}
+		router.Path(cfg.Metrics.Path).Handler(metricsHandler)
+		log.Printf(
+			"Metrics server enabled at %s (auth required: %t)",
+			cfg.Metrics.Path,
+			cfg.Metrics.Token != "",
+		)
 	}
 
 	// 注册管理API路由（如果启用）

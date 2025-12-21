@@ -63,6 +63,7 @@ type BalancerConfig struct {
 type MetricsConfig struct {
 	Enabled bool   `yaml:"enabled"`
 	Path    string `yaml:"path"`
+	Token   string `yaml:"token"` // 可选Token，保护Prometheus端点
 	// Port    int    `yaml:"port"`  // 目前未使用，与主服务共享端口
 }
 

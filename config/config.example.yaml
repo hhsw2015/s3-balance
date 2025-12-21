@@ -128,6 +128,8 @@ balancer:
 metrics:
   enabled: true
   path: "/metrics"
+  # Prometheus 抓取时需要携带的 Token（可选，配置后需使用 Authorization: Bearer <token> 访问）
+  token: ""
 
 # S3兼容API配置
 s3api:
