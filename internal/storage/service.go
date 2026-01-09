@@ -30,7 +30,7 @@ func NewService(db *gorm.DB) *Service {
 func (s *Service) RecordObject(key, bucketName string, size int64, metadata map[string]string) error {
 	// 首先检查是否存在已删除的同名对象
 	var deletedObj Object
-	if err := s.db.Unscoped().Where("`key` = ?", key).Where("`deleted_at` IS NOT NULL").First(&deletedObj).Error; err == nil {
+	if err := s.db.Unscoped().Where("key = ?", key).Where("deleted_at IS NOT NULL").First(&deletedObj).Error; err == nil {
 		// 存在已删除的同名对象，永久删除它
 		if err := s.db.Unscoped().Delete(&deletedObj).Error; err != nil {
 			return fmt.Errorf("failed to permanently delete soft-deleted object: %w", err)
@@ -53,7 +53,7 @@ func (s *Service) RecordObject(key, bucketName string, size int64, metadata map[
 	}
 
 	// 使用 Upsert（更新或插入）
-	result := s.db.Where("`key` = ?", key).Where("`deleted_at` IS NULL").FirstOrCreate(&obj)
+	result := s.db.Where("key = ?", key).Where("deleted_at IS NULL").FirstOrCreate(&obj)
 	if result.Error != nil {
 		return fmt.Errorf("failed to record object: %w", result.Error)
 	}
@@ -66,7 +66,7 @@ func (s *Service) RecordObject(key, bucketName string, size int64, metadata map[
 			"metadata":    obj.Metadata,
 			"updated_at":  time.Now(),
 		}
-		if err := s.db.Model(&Object{}).Where("`key` = ?", key).Updates(updates).Error; err != nil {
+		if err := s.db.Model(&Object{}).Where("key = ?", key).Updates(updates).Error; err != nil {
 			return fmt.Errorf("failed to update object: %w", err)
 		}
 	}
@@ -80,7 +80,7 @@ func (s *Service) RecordObject(key, bucketName string, size int64, metadata map[
 // FindObjectBucket 查找对象所在的存储桶
 func (s *Service) FindObjectBucket(key string) (string, error) {
 	var obj Object
-	if err := s.db.Where("`key` = ?", key).First(&obj).Error; err != nil {
+	if err := s.db.Where("key = ?", key).First(&obj).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return "", fmt.Errorf("object not found: %s", key)
 		}
@@ -92,7 +92,7 @@ func (s *Service) FindObjectBucket(key string) (string, error) {
 // GetObjectInfo 获取对象信息
 func (s *Service) GetObjectInfo(key string) (*Object, error) {
 	var obj Object
-	if err := s.db.Where("`key` = ?", key).First(&obj).Error; err != nil {
+	if err := s.db.Where("key = ?", key).First(&obj).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("object not found: %s", key)
 		}
@@ -111,7 +111,7 @@ func (s *Service) CopyObject(sourceKey, destKey string, metadata map[string]stri
 
 	// 检查目标对象是否已存在
 	var existingObj Object
-	if err := s.db.Where("`key` = ?", destKey).Where("`deleted_at` IS NULL").First(&existingObj).Error; err == nil {
+	if err := s.db.Where("key = ?", destKey).Where("deleted_at IS NULL").First(&existingObj).Error; err == nil {
 		// 目标对象已存在，删除旧的
 		if err := s.DeleteObject(destKey); err != nil {
 			return fmt.Errorf("failed to delete existing destination object: %w", err)
@@ -120,7 +120,7 @@ func (s *Service) CopyObject(sourceKey, destKey string, metadata map[string]stri
 
 	// 清理已软删除的同名对象
 	var deletedObj Object
-	if err := s.db.Unscoped().Where("`key` = ?", destKey).Where("`deleted_at` IS NOT NULL").First(&deletedObj).Error; err == nil {
+	if err := s.db.Unscoped().Where("key = ?", destKey).Where("deleted_at IS NOT NULL").First(&deletedObj).Error; err == nil {
 		if err := s.db.Unscoped().Delete(&deletedObj).Error; err != nil {
 			return fmt.Errorf("failed to permanently delete soft-deleted object: %w", err)
 		}
@@ -161,7 +161,7 @@ func (s *Service) CopyObject(sourceKey, destKey string, metadata map[string]stri
 // DeleteObject 删除对象记录（软删除）
 func (s *Service) DeleteObject(key string) error {
 	var obj Object
-	if err := s.db.Where("`key` = ?", key).First(&obj).Error; err != nil {
+	if err := s.db.Where("key = ?", key).First(&obj).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return fmt.Errorf("object not found: %s", key)
 		}
@@ -193,12 +193,12 @@ func (s *Service) ListObjects(bucketName, prefix, marker string, maxKeys int) ([
 
 	// 前缀过滤
 	if prefix != "" {
-		query = query.Where("`key` LIKE ?", prefix+"%")
+		query = query.Where("key LIKE ?", prefix+"%")
 	}
 
 	// Marker分页
 	if marker != "" {
-		query = query.Where("`key` > ?", marker)
+		query = query.Where("key > ?", marker)
 	}
 
 	// 限制返回数量
@@ -207,7 +207,7 @@ func (s *Service) ListObjects(bucketName, prefix, marker string, maxKeys int) ([
 	}
 
 	// 按key字母顺序排序（S3标准）
-	if err := query.Order("`key` ASC").Find(&objects).Error; err != nil {
+	if err := query.Order("key ASC").Find(&objects).Error; err != nil {
 		return nil, fmt.Errorf("failed to list objects: %w", err)
 	}
 
@@ -481,16 +481,16 @@ func (s *Service) GetPendingUploadSessions(prefix string, keyMarker string, uplo
 
 	// 根据前缀过滤
 	if prefix != "" {
-		query = query.Where("`key` LIKE ?", prefix+"%")
+		query = query.Where("key LIKE ?", prefix+"%")
 	}
 
 	// 分页标记处理
 	if keyMarker != "" {
 		if uploadIdMarker != "" {
 			// 如果同时指定了key和uploadId标记
-			query = query.Where("(`key` > ? OR (`key` = ? AND upload_id > ?))", keyMarker, keyMarker, uploadIdMarker)
+			query = query.Where("(key > ? OR (key = ? AND upload_id > ?))", keyMarker, keyMarker, uploadIdMarker)
 		} else {
-			query = query.Where("`key` > ?", keyMarker)
+			query = query.Where("key > ?", keyMarker)
 		}
 	}
 
@@ -500,7 +500,7 @@ func (s *Service) GetPendingUploadSessions(prefix string, keyMarker string, uplo
 	}
 
 	// 按key和uploadID排序
-	query = query.Order("`key` ASC, upload_id ASC")
+	query = query.Order("key ASC, upload_id ASC")
 
 	var sessions []*UploadSession
 	if err := query.Find(&sessions).Error; err != nil {
@@ -550,7 +550,7 @@ func (s *Service) GetAccessLogs(filter *AccessLogFilter) ([]*AccessLog, error) {
 			query = query.Where("action = ?", filter.Action)
 		}
 		if filter.Key != "" {
-			query = query.Where("`key` = ?", filter.Key)
+			query = query.Where("key = ?", filter.Key)
 		}
 		if filter.BucketName != "" {
 			query = query.Where("bucket_name = ?", filter.BucketName)
@@ -695,7 +695,7 @@ func (s *Service) GetVirtualBucketObjects(virtualBucketName string) ([]*Object, 
 
 	// 从对象表中查询这些真实对象
 	var realObjects []*Object
-	if err := s.db.Where("`key` IN ?", realObjectKeys).Find(&realObjects).Error; err != nil {
+	if err := s.db.Where("key IN ?", realObjectKeys).Find(&realObjects).Error; err != nil {
 		return nil, fmt.Errorf("failed to get objects for virtual bucket: %w", err)
 	}
 
