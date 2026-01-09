@@ -77,7 +77,24 @@ func (h *S3Handler) handleGetObject(w http.ResponseWriter, r *http.Request, buck
 		realKey = mapping.RealObjectKey
 		h.recordBackendOperation(bucket1, bucket.OperationTypeB)
 	} else {
+		bucket1 = requestedBucket
 		realKey = key
+	}
+
+	if !h.proxyModeEnabled() && bucket1 != nil && bucket1.Config.CustomHost != "" {
+		redirectURL, err := buildCustomHostURL(
+			bucket1.Config.CustomHost,
+			bucket1.Config.Name,
+			realKey,
+			bucket1.Config.RemoveBucket,
+			r.URL.RawQuery,
+		)
+		if err != nil {
+			h.sendS3Error(w, "InternalError", "Failed to build custom host URL", key)
+			return
+		}
+		http.Redirect(w, r, redirectURL, http.StatusFound)
+		return
 	}
 
 	// 生成预签名下载URL（使用真实key）
@@ -141,6 +158,39 @@ func (h *S3Handler) handleGetObject(w http.ResponseWriter, r *http.Request, buck
 		// 重定向模式：返回302重定向到预签名URL（默认）
 		http.Redirect(w, r, downloadInfo.URL, http.StatusFound)
 	}
+}
+
+func buildCustomHostURL(customHost, bucketName, key string, removeBucket bool, rawQuery string) (string, error) {
+	host := strings.TrimSpace(customHost)
+	if host == "" {
+		return "", fmt.Errorf("custom host is empty")
+	}
+	if !strings.Contains(host, "://") {
+		host = "https://" + host
+	}
+
+	parsed, err := url.Parse(host)
+	if err != nil {
+		return "", err
+	}
+
+	segments := make([]string, 0, 2)
+	if !removeBucket {
+		segments = append(segments, url.PathEscape(bucketName))
+	}
+	if key != "" {
+		for _, part := range strings.Split(strings.TrimPrefix(key, "/"), "/") {
+			segments = append(segments, url.PathEscape(part))
+		}
+	}
+	if len(segments) > 0 {
+		parsed.Path = "/" + strings.Join(segments, "/")
+	} else {
+		parsed.Path = "/"
+	}
+	parsed.RawQuery = rawQuery
+
+	return parsed.String(), nil
 }
 
 // handleHeadObject 获取对象元数据
