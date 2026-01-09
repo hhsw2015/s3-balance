@@ -48,6 +48,10 @@ buckets:
     enabled: true
     path_style: false  # AWS S3使用虚拟主机风格
     virtual: false  # 这是真实存储桶
+    # 自定义公开访问域名（仅用于GET重定向，可选）
+    # custom_host: "files.example.com"
+    # 自定义域名下是否移除bucket路径（可选，默认false）
+    # remove_bucket: false
     operation_limits:
       type_a: 0  # 类型A操作（写入类）上限，0表示不限制
       type_b: 0  # 类型B操作（读取类）上限，0表示不限制
