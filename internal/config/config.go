@@ -41,6 +41,8 @@ type BucketConfig struct {
 	Enabled         bool                 `yaml:"enabled"`           // 是否启用
 	PathStyle       bool                 `yaml:"path_style"`        // 是否使用路径风格访问
 	Virtual         bool                 `yaml:"virtual"`           // 是否为虚拟存储桶（仅S3 API中可见）
+	CustomHost      string               `yaml:"custom_host"`        // GET重定向使用的自定义域名（公开访问）
+	RemoveBucket    bool                 `yaml:"remove_bucket"`      // 自定义域名下是否移除bucket路径
 	OperationLimits OperationLimitConfig `yaml:"operation_limits"`
 }
 
