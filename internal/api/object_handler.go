@@ -19,7 +19,8 @@ import (
 func (h *S3Handler) handleObjectOperations(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	bucketName := vars["bucket"]
-	key := normalizeObjectKey(vars["key"])
+	rawKey := vars["key"]
+	key := normalizeObjectKey(rawKey)
 
 	// 记录操作指标
 	start := time.Now()
@@ -39,6 +40,7 @@ func (h *S3Handler) handleObjectOperations(w http.ResponseWriter, r *http.Reques
 	case "HEAD":
 		h.handleHeadObject(w, r, bucketName, key)
 	case "PUT":
+		log.Printf("upload request bucket=%s raw_key=%q normalized_key=%q path=%q raw_path=%q", bucketName, rawKey, key, r.URL.Path, r.URL.RawPath)
 		h.handlePutObject(w, r, bucketName, key)
 	case "DELETE":
 		h.handleDeleteObject(w, r, bucketName, key)

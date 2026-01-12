@@ -76,7 +76,7 @@ func normalizeObjectKey(key string) string {
 	}
 
 	normalized := key
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		if !strings.Contains(normalized, "%") {
 			break
 		}
