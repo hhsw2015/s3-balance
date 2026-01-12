@@ -438,12 +438,7 @@ func (h *S3Handler) handleCopyObject(w http.ResponseWriter, r *http.Request, des
 	sourceBucket := parts[0]
 	sourceKey := parts[1]
 
-	// URL 解码源对象键
-	sourceKey, err := url.QueryUnescape(sourceKey)
-	if err != nil {
-		h.sendS3Error(w, "InvalidArgument", "Invalid source key encoding", sourceKey)
-		return
-	}
+	sourceKey = normalizeObjectKey(sourceKey)
 
 	// 检查目标存储桶是否存在
 	_, ok := h.bucketManager.GetBucket(destBucket)

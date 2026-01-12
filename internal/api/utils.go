@@ -75,10 +75,18 @@ func normalizeObjectKey(key string) string {
 		return key
 	}
 
-	decoded, err := url.PathUnescape(key)
-	if err != nil || decoded == key {
-		return key
+	normalized := key
+	for i := 0; i < 2; i++ {
+		if !strings.Contains(normalized, "%") {
+			break
+		}
+
+		decoded, err := url.PathUnescape(normalized)
+		if err != nil || decoded == normalized {
+			break
+		}
+		normalized = decoded
 	}
 
-	return decoded
+	return normalized
 }
