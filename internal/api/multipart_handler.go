@@ -24,7 +24,7 @@ import (
 func (h *S3Handler) handleUploadPart(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	bucketName := vars["bucket"]
-	key := vars["key"]
+	key := normalizeObjectKey(vars["key"])
 	partNumber := vars["partNumber"]
 	uploadID := vars["uploadId"]
 
@@ -183,7 +183,7 @@ func (h *S3Handler) handleUploadPart(w http.ResponseWriter, r *http.Request) {
 func (h *S3Handler) handleMultipartUpload(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	bucketName := vars["bucket"]
-	key := vars["key"]
+	key := normalizeObjectKey(vars["key"])
 
 	// 检查请求的存储桶是否为虚拟存储桶
 	requestedBucket, ok := h.bucketManager.GetBucket(bucketName)
@@ -379,7 +379,7 @@ func (h *S3Handler) handleListMultipartUploads(w http.ResponseWriter, r *http.Re
 func (h *S3Handler) handleListMultipartParts(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	bucketName := vars["bucket"]
-	key := vars["key"]
+	key := normalizeObjectKey(vars["key"])
 	uploadID := r.URL.Query().Get("uploadId")
 
 	// 解析查询参数
@@ -504,7 +504,7 @@ func (h *S3Handler) handleListMultipartParts(w http.ResponseWriter, r *http.Requ
 func (h *S3Handler) handleCompleteMultipartUpload(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	bucketName := vars["bucket"]
-	key := vars["key"]
+	key := normalizeObjectKey(vars["key"])
 	uploadID := r.URL.Query().Get("uploadId")
 
 	// 检查请求的存储桶是否为虚拟存储桶
@@ -693,7 +693,7 @@ func (h *S3Handler) abortMultipartUploadInternal(targetBucket *bucket.BucketInfo
 func (h *S3Handler) handleAbortMultipartUpload(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	bucketName := vars["bucket"]
-	key := vars["key"]
+	key := normalizeObjectKey(vars["key"])
 	uploadID := r.URL.Query().Get("uploadId")
 
 	// 检查请求的存储桶是否为虚拟存储桶

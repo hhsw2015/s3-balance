@@ -32,7 +32,7 @@ func (h *S3Handler) accessLogMiddleware(next http.Handler) http.Handler {
 
 		vars := mux.Vars(r)
 		bucket := vars["bucket"]
-		key := vars["key"]
+		key := normalizeObjectKey(vars["key"])
 		action := determineAccessAction(r, bucket, key)
 		if action == "" && bucket == "" && key == "" {
 			return

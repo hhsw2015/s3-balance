@@ -19,7 +19,7 @@ import (
 func (h *S3Handler) handleObjectOperations(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	bucketName := vars["bucket"]
-	key := vars["key"]
+	key := normalizeObjectKey(vars["key"])
 
 	// 记录操作指标
 	start := time.Now()
@@ -181,7 +181,7 @@ func buildCustomHostURL(customHost, bucketName, key string, removeBucket bool, r
 
 	segments := make([]string, 0, 2)
 	if !removeBucket {
-		segments = append(segments, url.PathEscape(bucketName))
+		segments = append(segments, escapePathSegment(bucketName))
 	}
 	if key != "" {
 		for _, part := range strings.Split(strings.TrimPrefix(key, "/"), "/") {
@@ -191,7 +191,7 @@ func buildCustomHostURL(customHost, bucketName, key string, removeBucket bool, r
 					decodedPart = unescaped
 				}
 			}
-			segments = append(segments, url.PathEscape(decodedPart))
+			segments = append(segments, escapePathSegment(decodedPart))
 		}
 	}
 	if len(segments) > 0 {
@@ -230,7 +230,7 @@ func stripQueryAndNormalizePath(rawURL string) (string, error) {
 			}
 		}
 		decodedSegments = append(decodedSegments, decodedPart)
-		segments = append(segments, url.PathEscape(decodedPart))
+		segments = append(segments, escapePathSegment(decodedPart))
 	}
 
 	if len(segments) > 0 {
@@ -244,6 +244,25 @@ func stripQueryAndNormalizePath(rawURL string) (string, error) {
 	parsed.RawQuery = ""
 
 	return parsed.String(), nil
+}
+
+func escapePathSegment(segment string) string {
+	escaped := url.PathEscape(segment)
+	return strings.NewReplacer(
+		"%21", "!",
+		"%24", "$",
+		"%26", "&",
+		"%27", "'",
+		"%28", "(",
+		"%29", ")",
+		"%2A", "*",
+		"%2B", "+",
+		"%2C", ",",
+		"%3B", ";",
+		"%3D", "=",
+		"%3A", ":",
+		"%40", "@",
+	).Replace(escaped)
 }
 
 // handleHeadObject 获取对象元数据

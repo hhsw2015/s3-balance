@@ -4,7 +4,9 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/DullJZ/s3-balance/internal/storage"
@@ -66,4 +68,17 @@ func (h *S3Handler) setObjectHeaders(w http.ResponseWriter, obj *storage.Object)
 	} else {
 		w.Header().Set("Content-Type", "application/octet-stream")
 	}
+}
+
+func normalizeObjectKey(key string) string {
+	if !strings.Contains(key, "%") {
+		return key
+	}
+
+	decoded, err := url.PathUnescape(key)
+	if err != nil || decoded == key {
+		return key
+	}
+
+	return decoded
 }
