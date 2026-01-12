@@ -126,6 +126,7 @@ func (h *S3Handler) handleUploadPart(w http.ResponseWriter, r *http.Request) {
 		h.sendS3Error(w, "InternalError", "Failed to generate upload part URL", key)
 		return
 	}
+	logPresignedURL("upload_part", presignRequest.URL)
 
 	// 使用反向代理上传分片到真实预签名URL
 	req, err := http.NewRequest("PUT", presignRequest.URL, r.Body)

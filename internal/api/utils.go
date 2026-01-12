@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/xml"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -89,4 +90,14 @@ func normalizeObjectKey(key string) string {
 	}
 
 	return normalized
+}
+
+func logPresignedURL(tag string, rawURL string) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		log.Printf("%s presigned url parse error: %v", tag, err)
+		return
+	}
+
+	log.Printf("%s presigned url path=%q raw_path=%q host=%q", tag, parsed.Path, parsed.RawPath, parsed.Host)
 }
