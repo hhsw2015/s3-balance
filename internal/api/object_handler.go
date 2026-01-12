@@ -55,7 +55,6 @@ func (h *S3Handler) handleGetObject(w http.ResponseWriter, r *http.Request, buck
 	}
 
 	// 如果是虚拟存储桶，需要通过映射查找真实存储桶
-	var err error
 	var bucket1 *bucket.BucketInfo
 
 	var realKey string
