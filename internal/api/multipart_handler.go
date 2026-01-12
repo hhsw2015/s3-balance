@@ -28,7 +28,6 @@ func (h *S3Handler) handleUploadPart(w http.ResponseWriter, r *http.Request) {
 	key := normalizeObjectKey(rawKey)
 	partNumber := vars["partNumber"]
 	uploadID := vars["uploadId"]
-	log.Printf("upload part request bucket=%s raw_key=%q normalized_key=%q part=%s upload_id=%s path=%q raw_path=%q", bucketName, rawKey, key, partNumber, uploadID, r.URL.Path, r.URL.RawPath)
 
 	// 检查请求的存储桶是否为虚拟存储桶
 	requestedBucket, ok := h.bucketManager.GetBucket(bucketName)
@@ -126,7 +125,6 @@ func (h *S3Handler) handleUploadPart(w http.ResponseWriter, r *http.Request) {
 		h.sendS3Error(w, "InternalError", "Failed to generate upload part URL", key)
 		return
 	}
-	logPresignedURL("upload_part", presignRequest.URL)
 
 	// 使用反向代理上传分片到真实预签名URL
 	req, err := http.NewRequest("PUT", presignRequest.URL, r.Body)

@@ -382,7 +382,6 @@ func (h *S3Handler) handlePutObject(w http.ResponseWriter, r *http.Request, buck
 		h.sendS3Error(w, "InternalError", "Failed to generate upload URL", key)
 		return
 	}
-	logPresignedURL("upload", uploadInfo.URL)
 
 	// 只使用反向代理上传到真实预签名URL，不再返回307重定向
 	// 创建新的请求
