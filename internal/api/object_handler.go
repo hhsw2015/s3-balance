@@ -190,7 +190,13 @@ func buildCustomHostURL(customHost, bucketName, key string, removeBucket bool, r
 		}
 	}
 	if len(segments) > 0 {
-		parsed.Path = "/" + strings.Join(segments, "/")
+		escapedPath := "/" + strings.Join(segments, "/")
+		parsed.RawPath = escapedPath
+		if unescapedPath, err := url.PathUnescape(escapedPath); err == nil {
+			parsed.Path = unescapedPath
+		} else {
+			parsed.Path = escapedPath
+		}
 	} else {
 		parsed.Path = "/"
 	}
