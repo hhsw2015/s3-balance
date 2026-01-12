@@ -81,8 +81,9 @@ func (h *S3Handler) handleGetObject(w http.ResponseWriter, r *http.Request, buck
 		realKey = key
 	}
 
-	if !h.proxyModeEnabled() && bucket1 != nil && bucket1.Config.CustomHost != "" {
-		redirectURL, err := buildCustomHostURL(
+	var downloadURL string
+	if bucket1 != nil && bucket1.Config.CustomHost != "" {
+		customURL, err := buildCustomHostURL(
 			bucket1.Config.CustomHost,
 			bucket1.Config.Name,
 			realKey,
@@ -93,25 +94,30 @@ func (h *S3Handler) handleGetObject(w http.ResponseWriter, r *http.Request, buck
 			h.sendS3Error(w, "InternalError", "Failed to build custom host URL", key)
 			return
 		}
-		http.Redirect(w, r, redirectURL, http.StatusFound)
-		return
+		downloadURL = customURL
+	} else {
+		// 生成预签名下载URL（使用真实key）
+		downloadInfo, err := h.presigner.GenerateDownloadURL(
+			context.Background(),
+			bucket1,
+			realKey,
+		)
+		if err != nil {
+			h.sendS3Error(w, "InternalError", "Failed to generate download URL", key)
+			return
+		}
+		downloadURL = downloadInfo.URL
 	}
-
-	// 生成预签名下载URL（使用真实key）
-	downloadInfo, err := h.presigner.GenerateDownloadURL(
-		context.Background(),
-		bucket1,
-		realKey,
-	)
-	if err != nil {
-		h.sendS3Error(w, "InternalError", "Failed to generate download URL", key)
-		return
+	if bucket1 != nil && bucket1.Config.Endpoint != "" {
+		if normalizedURL, err := stripQueryAndNormalizePath(downloadURL); err == nil {
+			downloadURL = normalizedURL
+		}
 	}
 
 	// 根据配置决定使用代理模式还是重定向模式
 	if h.proxyModeEnabled() {
 		// 代理模式：流式传输内容给客户端
-		resp, err := http.Get(downloadInfo.URL)
+		resp, err := http.Get(downloadURL)
 		if err != nil {
 			h.sendS3Error(w, "InternalError", "Failed to fetch object", key)
 			return
@@ -156,7 +162,7 @@ func (h *S3Handler) handleGetObject(w http.ResponseWriter, r *http.Request, buck
 		}
 	} else {
 		// 重定向模式：返回302重定向到预签名URL（默认）
-		http.Redirect(w, r, downloadInfo.URL, http.StatusFound)
+		http.Redirect(w, r, downloadURL, http.StatusFound)
 	}
 }
 
@@ -200,6 +206,43 @@ func buildCustomHostURL(customHost, bucketName, key string, removeBucket bool, r
 	} else {
 		parsed.Path = "/"
 	}
+
+	return parsed.String(), nil
+}
+
+func stripQueryAndNormalizePath(rawURL string) (string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+
+	pathSource := parsed.RawPath
+	if pathSource == "" {
+		pathSource = parsed.Path
+	}
+
+	segments := make([]string, 0, 8)
+	decodedSegments := make([]string, 0, 8)
+	for _, part := range strings.Split(strings.TrimPrefix(pathSource, "/"), "/") {
+		decodedPart := part
+		if strings.Contains(part, "%") {
+			if unescaped, err := url.PathUnescape(part); err == nil {
+				decodedPart = unescaped
+			}
+		}
+		decodedSegments = append(decodedSegments, decodedPart)
+		segments = append(segments, url.PathEscape(decodedPart))
+	}
+
+	if len(segments) > 0 {
+		escapedPath := "/" + strings.Join(segments, "/")
+		parsed.RawPath = escapedPath
+		parsed.Path = "/" + strings.Join(decodedSegments, "/")
+	} else {
+		parsed.RawPath = ""
+		parsed.Path = "/"
+	}
+	parsed.RawQuery = ""
 
 	return parsed.String(), nil
 }
