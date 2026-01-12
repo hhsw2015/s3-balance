@@ -703,8 +703,8 @@ func (h *S3Handler) handleAbortMultipartUpload(w http.ResponseWriter, r *http.Re
 	bucketName := vars["bucket"]
 	rawKey := vars["key"]
 	key := normalizeObjectKey(rawKey)
-	log.Printf("complete multipart request bucket=%s raw_key=%q normalized_key=%q upload_id=%s path=%q raw_path=%q", bucketName, rawKey, key, uploadID, r.URL.Path, r.URL.RawPath)
 	uploadID := r.URL.Query().Get("uploadId")
+	log.Printf("abort multipart request bucket=%s raw_key=%q normalized_key=%q upload_id=%s path=%q raw_path=%q", bucketName, rawKey, key, uploadID, r.URL.Path, r.URL.RawPath)
 
 	// 检查请求的存储桶是否为虚拟存储桶
 	requestedBucket, ok := h.bucketManager.GetBucket(bucketName)
