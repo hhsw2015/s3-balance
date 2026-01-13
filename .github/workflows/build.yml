@@ -22,10 +22,10 @@ jobs:
     - name: Download frontend assets
       run: |
         echo "Downloading latest frontend build from s3-balance-web..."
-        LATEST_RELEASE=$(curl -s https://api.github.com/repos/DullJZ/s3-balance-web/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        LATEST_RELEASE=$(curl -s https://api.github.com/repos/hhsw2015/s3-balance-web/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         echo "Latest frontend release: $LATEST_RELEASE"
 
-        curl -L -o dist.tar.gz "https://github.com/DullJZ/s3-balance-web/releases/download/$LATEST_RELEASE/dist.tar.gz"
+        curl -L -o dist.tar.gz "https://github.com/hhsw2015/s3-balance-web/releases/download/$LATEST_RELEASE/dist.tar.gz"
 
         mkdir -p internal/webui/dist
         tar -xzf dist.tar.gz -C internal/webui/dist/
@@ -80,10 +80,10 @@ jobs:
     - name: Download frontend assets
       run: |
         echo "Downloading latest frontend build from s3-balance-web..."
-        LATEST_RELEASE=$(curl -s https://api.github.com/repos/DullJZ/s3-balance-web/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        LATEST_RELEASE=$(curl -s https://api.github.com/repos/hhsw2015/s3-balance-web/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         echo "Latest frontend release: $LATEST_RELEASE"
 
-        curl -L -o dist.tar.gz "https://github.com/DullJZ/s3-balance-web/releases/download/$LATEST_RELEASE/dist.tar.gz"
+        curl -L -o dist.tar.gz "https://github.com/hhsw2015/s3-balance-web/releases/download/$LATEST_RELEASE/dist.tar.gz"
 
         mkdir -p internal/webui/dist
         tar -xzf dist.tar.gz -C internal/webui/dist/
