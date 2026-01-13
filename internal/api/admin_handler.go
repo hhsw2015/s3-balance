@@ -49,6 +49,8 @@ type BucketResponse struct {
 	Enabled         bool      `json:"enabled"`
 	Available       bool      `json:"available"`
 	Virtual         bool      `json:"virtual"`
+	CustomHost      string    `json:"custom_host"`
+	RemoveBucket    bool      `json:"remove_bucket"`
 	LastChecked     time.Time `json:"last_checked"`
 	OperationCountA int64     `json:"operation_count_a"`
 	OperationCountB int64     `json:"operation_count_b"`
@@ -211,6 +213,8 @@ func (h *AdminHandler) convertBucketInfo(b *bucket.BucketInfo) BucketResponse {
 		Enabled:         b.Config.Enabled,
 		Available:       b.Available,
 		Virtual:         b.Config.Virtual,
+		CustomHost:      b.Config.CustomHost,
+		RemoveBucket:    b.Config.RemoveBucket,
 		LastChecked:     b.LastChecked,
 		OperationCountA: b.GetOperationCount(bucket.OperationTypeA),
 		OperationCountB: b.GetOperationCount(bucket.OperationTypeB),
