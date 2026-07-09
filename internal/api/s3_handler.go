@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net/http"
 	"sync/atomic"
 
 	"github.com/DullJZ/s3-balance/internal/balancer"
@@ -73,6 +74,7 @@ func (h *S3Handler) initSettings(accessKey, secretKey string, proxyMode, authReq
 func (h *S3Handler) RegisterS3Routes(router *mux.Router) {
 	// 公共路由（不需要认证）
 	router.HandleFunc("/", h.handleListBuckets).Methods("GET")
+	router.HandleFunc("/", h.handleOptions).Methods("OPTIONS")
 
 	// 带认证/虚拟主机的路由
 	protected := router.NewRoute().PathPrefix("/{bucket}").Subrouter()
@@ -80,7 +82,9 @@ func (h *S3Handler) RegisterS3Routes(router *mux.Router) {
 
 	// Bucket operations
 	protected.HandleFunc("", h.handleBucketOperations).Methods("GET", "HEAD", "PUT", "DELETE")
+	protected.HandleFunc("", h.handleOptions).Methods("OPTIONS")
 	protected.HandleFunc("/", h.handleBucketOperations).Methods("GET", "HEAD", "PUT", "DELETE")
+	protected.HandleFunc("/", h.handleOptions).Methods("OPTIONS")
 
 	// Multipart upload operations - must be registered before generic object operations
 	protected.HandleFunc("/{key:.*}", h.handleUploadPart).Methods("PUT").Queries("partNumber", "{partNumber:[0-9]+}", "uploadId", "{uploadId}")
@@ -92,6 +96,7 @@ func (h *S3Handler) RegisterS3Routes(router *mux.Router) {
 
 	// Object operations - must be registered after multipart operations to avoid conflicts
 	protected.HandleFunc("/{key:.*}", h.handleObjectOperations).Methods("GET", "HEAD", "PUT", "DELETE")
+	protected.HandleFunc("/{key:.*}", h.handleOptions).Methods("OPTIONS")
 
 	// 添加中间件
 	protected.Use(h.accessLogMiddleware)
@@ -108,6 +113,10 @@ func (h *S3Handler) RegisterS3Routes(router *mux.Router) {
 		OnError:       h.handleAuthError,
 		SignatureHost: h.signatureHost,
 	}))
+}
+
+func (h *S3Handler) handleOptions(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *S3Handler) loadSettings() handlerSettings {
