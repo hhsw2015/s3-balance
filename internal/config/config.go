@@ -17,6 +17,16 @@ type Config struct {
 	Metrics  MetricsConfig  `yaml:"metrics"`
 	S3API    S3APIConfig    `yaml:"s3api"`
 	API      APIConfig      `yaml:"api"`
+	Offline  OfflineConfig  `yaml:"offline"`
+}
+
+// OfflineConfig configures the offline-download proof-of-concept.
+type OfflineConfig struct {
+	Enabled       bool   `yaml:"enabled"`
+	WorkerBaseURL string `yaml:"worker_base_url"`
+	WorkerAuth    string `yaml:"worker_auth"`
+	PartSize      int64  `yaml:"part_size"`
+	Concurrency   int    `yaml:"concurrency"`
 }
 
 // ServerConfig 服务器配置

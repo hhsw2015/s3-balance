@@ -18,6 +18,7 @@ import (
 	"github.com/DullJZ/s3-balance/internal/database"
 	"github.com/DullJZ/s3-balance/internal/metrics"
 	"github.com/DullJZ/s3-balance/internal/middleware"
+	"github.com/DullJZ/s3-balance/internal/offline"
 	"github.com/DullJZ/s3-balance/internal/scheduler"
 	"github.com/DullJZ/s3-balance/internal/storage"
 	"github.com/DullJZ/s3-balance/internal/web"
@@ -162,6 +163,19 @@ func main() {
 		apiRouter.Use(middleware.TokenAuthMiddleware(cfg.API.Token))
 		adminHandler.RegisterRoutes(apiRouter)
 		statsHandler.RegisterRoutes(apiRouter)
+
+		if cfg.Offline.Enabled {
+			offlineStore := offline.NewStore()
+			offlineExec := offline.NewExecutor(offline.Config{
+				WorkerBaseURL: cfg.Offline.WorkerBaseURL,
+				WorkerAuth:    cfg.Offline.WorkerAuth,
+				PartSize:      cfg.Offline.PartSize,
+				Concurrency:   cfg.Offline.Concurrency,
+			}, offlineStore, bucketManager)
+			offlineHandler := api.NewOfflineHandler(offlineExec, offlineStore)
+			offlineHandler.RegisterRoutes(apiRouter)
+			log.Printf("Offline-download PoC endpoints enabled (worker=%s)", cfg.Offline.WorkerBaseURL)
+		}
 
 		log.Printf("Management API endpoints available at /api/*")
 	}
